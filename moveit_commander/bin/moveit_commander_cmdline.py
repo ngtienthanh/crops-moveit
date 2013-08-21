@@ -5,10 +5,9 @@ import rospy
 import readline
 import sys
 import os
-import signal 
 
-import argparse
-from moveit_commander import MoveGroupCommandInterpreter, MoveGroupInfoLevel, roscpp_initialize, roscpp_shutdown
+from optparse import OptionParser, OptionGroup
+from moveit_commander import MoveGroupCommandInterpreter, MoveGroupInfoLevel
 
 class bcolors:
     HEADER = '\033[95m'
@@ -77,10 +76,10 @@ def get_context_keywords(interpreter):
     kw["quit"] = []
     return kw
 
-def run_interactive(group_name):
+def run_interactive(group_names):
     c = MoveGroupCommandInterpreter()
-    if len(group_name) > 0:
-        c.execute("use " + group_name)
+    for g in group_names:
+        c.execute( "use " + g)
     completer = SimpleCompleter(get_context_keywords(c))
     readline.set_completer(completer.complete)
 
@@ -99,10 +98,10 @@ def run_interactive(group_name):
             cmd = raw_input(bcolors.OKBLUE + name + '> ' + bcolors.ENDC)
         except:
             break
-        cmdorig = cmd.strip()
-        if cmdorig == "":
+        cmd = cmd.strip()
+        if cmd == "":
             continue
-        cmd = cmdorig.lower()
+        cmd = cmd.lower()
 
         if cmd == "q" or cmd == "quit" or cmd == "exit":
             break
@@ -110,51 +109,32 @@ def run_interactive(group_name):
             print_message(MoveGroupInfoLevel.INFO, "Master is '" + os.environ['ROS_MASTER_URI'] + "'")
             continue
 
-        (level, msg) = c.execute(cmdorig)
+        (level, msg) = c.execute(cmd)
         print_message(level, msg)
         # update the set of keywords
         completer.set_options(get_context_keywords(c))
             
-def run_service(group_name): 
+def run_service(group_names): 
     c = MoveGroupCommandInterpreter()
-    if len(group_name) > 0:
-        c.execute("use " + group_name)
+    for g in group_names:
+        c.execute("use " + g)
     # add service stuff
     print "Running ROS service"
     rospy.spin()
 
-def stop_ros(reason):
-    rospy.signal_shutdown(reason)
-    roscpp_shutdown()
-
-def sigint_handler(signal, frame):
-    stop_ros("Ctrl+C pressed")
-    # this won't actually exit, but trigger an exception to terminate raw_input
-    sys.exit(0)
-
 if __name__=='__main__':
-    
-    signal.signal(signal.SIGINT, sigint_handler)
+    rospy.init_node('move_group_interface_cmdline', anonymous=True)
 
-    roscpp_initialize(sys.argv)
+    usage = """%prog [options] <group_name_1> [<group_name_2> ...]"""
+    parser = OptionParser(usage)
+    parser.add_option("-i", "--interactive", action="store_true", dest="interactive", default=True,
+                      help="Run the command processing script in interactive mode")
+    parser.add_option("-s", "--service", action="store_true", dest="service", default=False,
+                      help="Run the command processing script as a ROS service")
+    (options, args) = parser.parse_args()
 
-    rospy.init_node('move_group_interface_cmdline', anonymous=True, disable_signals=True)
-
-    parser = argparse.ArgumentParser(usage = """%(prog)s [options] [<group_name>]""",
-                                     description = "Command Line Interface to MoveIt!")
-    parser.add_argument("-i", "--interactive", action="store_true", dest="interactive", default=True,
-                        help="Run the command processing script in interactive mode (default)")
-    parser.add_argument("-s", "--service", action="store_true", dest="service", default=False,
-                        help="Run the command processing script as a ROS service")
-    parser.add_argument("group_name", type=str, default="", nargs='?', help="Group name to initialize the CLI for.")
-    
-    opt = parser.parse_args(rospy.myargv()[1:])
-
-    if opt.service:
-        run_service(opt.group_name)
+    if options.service:
+        run_service(args)
     else:
-        run_interactive(opt.group_name)
-
-    stop_ros("Done")
-
+        run_interactive(args)
     print "Bye bye!"

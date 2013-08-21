@@ -50,30 +50,23 @@ namespace moveit_setup_assistant
 // ******************************************************************************************
 // Constants
 // ******************************************************************************************
-
+ 
 // Used for loading kinematic model
 static const std::string ROBOT_DESCRIPTION = "robot_description";
 static const std::string MOVEIT_ROBOT_STATE = "moveit_robot_state";
-
-// Default kin solver values
-static const double DEFAULT_KIN_SOLVER_SEARCH_RESOLUTION_ = 0.005;
-static const double DEFAULT_KIN_SOLVER_TIMEOUT_ = 0.005;
-static const int    DEFAULT_KIN_SOLVER_ATTEMPTS_ = 3;
-
 
 // ******************************************************************************************
 // Structs
 // ******************************************************************************************
 
-/**
+/** 
  * Planning groups extra data not found in srdf but used in config files
  */
 struct GroupMetaData
 {
   std::string kinematics_solver_; // Name of kinematics plugin to use
   double kinematics_solver_search_resolution_; // resolution to use with solver
-  double kinematics_solver_timeout_; // solver timeout
-  int kinematics_solver_attempts_; // solver attempts
+  double kinematics_solver_timeout_; // default solver timeout
 };
 
 // ******************************************************************************************
@@ -97,16 +90,13 @@ public:
   // ******************************************************************************************
 
   /// Full file-system path to urdf
-  std::string urdf_path_;
+  std::string urdf_path_; 
 
   /// Name of package containig urdf (note: this may be empty b/c user may not have urdf in pkg)
-  std::string urdf_pkg_name_;
+  std::string urdf_pkg_name_; 
 
   /// Path relative to urdf package (note: this may be same as urdf_path_)
-  std::string urdf_pkg_relative_path_;
-
-  /// Flag indicating whether the URDF was loaded from .xacro format
-  bool urdf_from_xacro_;
+  std::string urdf_pkg_relative_path_; 
 
   /// URDF robot model
   boost::shared_ptr<urdf::Model> urdf_model_;
@@ -116,11 +106,11 @@ public:
   // ******************************************************************************************
 
   /// Full file-system path to srdf
-  std::string srdf_path_;
+  std::string srdf_path_; 
 
   /// Path relative to loaded configuration package
   std::string srdf_pkg_relative_path_;
-
+ 
   /// SRDF Data and Writer
   SRDFWriterPtr srdf_;
 
@@ -132,22 +122,19 @@ public:
   std::map<std::string, GroupMetaData> group_meta_data_;
 
   /// Setup Assistants package's path for when we use its templates
-  std::string setup_assistant_path_;
+  std::string setup_assistant_path_; 
 
   /// Loaded configuration package path - if an existing package was loaded, holds that path
   std::string config_pkg_path_;
 
   /// Location that moveit_setup_assistant stores its templates
   std::string template_package_path_;
-
+  
   /// Is this application in debug mode?
   bool debug_;
 
   /// Allowed collision matrix for robot poses
   collision_detection::AllowedCollisionMatrix allowed_collision_matrix_;
-
-  /// Timestamp when configuration package was generated, if it was previously generated
-  std::time_t config_pkg_generated_timestamp_;
 
   // ******************************************************************************************
   // Public Functions
@@ -161,15 +148,15 @@ public:
 
   /// Provide a shared planning scene
   planning_scene::PlanningScenePtr getPlanningScene();
-
-  /**
+  
+  /** 
    * Find the associated group by name
-   *
+   * 
    * @param name - name of data to find in datastructure
    * @return pointer to data in datastructure
    */
   srdf::Model::Group* findGroupByName( const std::string &name );
-
+  
   /// Load the allowed collision matrix from the SRDF's list of link pairs
   void loadAllowedCollisionMatrix();
 
@@ -181,30 +168,23 @@ public:
   bool outputKinematicsYAML( const std::string& file_path );
   bool outputJointLimitsYAML( const std::string& file_path );
 
-  /**
-   * \brief Decide the best two joints to be used for the projection evaluator
-   * \param planning_group name of group to use
-   * \return string - value to insert into yaml file
-   */
-  std::string decideProjectionJoints(std::string planning_group);
-
-  /**
+  /** 
    * Input kinematics.yaml file for editing its values
    * @param file_path path to kinematics.yaml in the input package
    * @return bool if the file was read correctly
-   */
+   */  
   bool inputKinematicsYAML( const std::string& file_path );
 
-  /**
+  /** 
    * Input .setup_assistant file - contains data used for the MoveIt Setup Assistant
-   *
+   * 
    * @param file_path path to .setup_assistant file
    * @return bool if the file was read correctly
    */
   bool inputSetupAssistantYAML( const std::string& file_path );
 
   /**
-   * Helper Function for joining a file path and a file name, or two file paths, etc,
+   * Helper Function for joining a file path and a file name, or two file paths, etc, 
    * in a cross-platform way
    *
    * @param path1 first half of path
@@ -231,6 +211,6 @@ private:
 typedef boost::shared_ptr<MoveItConfigData> MoveItConfigDataPtr;
 
 
-} // namespace
+} // namespace 
 
 #endif

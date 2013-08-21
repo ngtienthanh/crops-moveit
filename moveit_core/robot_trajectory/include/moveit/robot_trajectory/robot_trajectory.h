@@ -32,7 +32,7 @@
 *  POSSIBILITY OF SUCH DAMAGE.
 *********************************************************************/
 
-/* Author: Ioan Sucan, Adam Leeper */
+/* Author: Ioan Sucan */
 
 #ifndef MOVEIT_ROBOT_TRAJECTORY_KINEMATIC_TRAJECTORY_
 #define MOVEIT_ROBOT_TRAJECTORY_KINEMATIC_TRAJECTORY_
@@ -49,31 +49,31 @@ class RobotTrajectory
 {
 public:
   RobotTrajectory(const robot_model::RobotModelConstPtr &kmodel, const std::string &group);
-
+  
   const robot_model::RobotModelConstPtr& getRobotModel() const
   {
     return kmodel_;
   }
-
+  
   const robot_model::JointModelGroup* getGroup() const
   {
     return group_;
   }
-
+  
   const std::string& getGroupName() const;
-
+  
   void setGroupName(const std::string &group_name);
-
+  
   std::size_t getWayPointCount() const
   {
     return waypoints_.size();
-  }
-
+  } 
+  
   const robot_state::RobotState& getWayPoint(std::size_t index) const
   {
     return *waypoints_[index];
   }
-
+  
   const robot_state::RobotState& getLastWayPoint() const
   {
     return *waypoints_.back();
@@ -83,18 +83,18 @@ public:
   {
     return *waypoints_.front();
   }
-
+  
   robot_state::RobotStatePtr& getWayPointPtr(std::size_t index)
   {
     return waypoints_[index];
   }
 
-  robot_state::RobotStatePtr& getLastWayPointPtr()
+  robot_state::RobotStatePtr& getLastWayPointPtr() 
   {
     return waypoints_.back();
   }
 
-  robot_state::RobotStatePtr& getFirstWayPointPtr()
+  robot_state::RobotStatePtr& getFirstWayPointPtr() 
   {
     return waypoints_.front();
   }
@@ -103,14 +103,8 @@ public:
   {
     return duration_from_previous_;
   }
-
-  /** @brief  Returns the duration after start that a waypoint will be reached.
-   *  @param  The waypoint index.
-   *  @return The duration from start; retuns -1.0 if index is out of range.
-   */
-  double getWaypointDurationFromStart(std::size_t index) const;
-
-  double getWayPointDurationFromPrevious(std::size_t index) const
+  
+  double getWayPointDurationFromPrevious(std::size_t index)
   {
     if (duration_from_previous_.size() > index)
       return duration_from_previous_[index];
@@ -124,12 +118,12 @@ public:
       duration_from_previous_.resize(index + 1, 0.0);
     duration_from_previous_[index] = value;
   }
-
+  
   bool empty() const
   {
     return waypoints_.empty();
   }
-
+  
   void addSuffixWayPoint(const robot_state::RobotState &state, double dt)
   {
     addSuffixWayPoint(robot_state::RobotStatePtr(new robot_state::RobotState(state)), dt);
@@ -157,50 +151,33 @@ public:
     insertWayPoint(index, robot_state::RobotStatePtr(new robot_state::RobotState(state)), dt);
   }
 
-  void insertWayPoint(std::size_t index, const robot_state::RobotStatePtr &state, double dt)
+  void insertWayPoint(std::size_t index, const robot_state::RobotStatePtr &state, double dt)  
   {
-    waypoints_.insert(waypoints_.begin() + index, state);
+    waypoints_.insert(waypoints_.begin() + index, state); 
     duration_from_previous_.insert(duration_from_previous_.begin() + index, dt);
   }
-
+  
   void append(const RobotTrajectory &source, double dt);
 
   void swap(robot_trajectory::RobotTrajectory &other);
-
+  
   void clear();
-
+  
   double getAverageSegmentDuration() const;
-
+  
   void getRobotTrajectoryMsg(moveit_msgs::RobotTrajectory &trajectory) const;
 
   void setRobotTrajectoryMsg(const robot_state::RobotState &reference_state,
                              const moveit_msgs::RobotTrajectory &trajectory);
   void setRobotTrajectoryMsg(const robot_state::RobotState &reference_state,
                              const moveit_msgs::RobotState &state, const moveit_msgs::RobotTrajectory &trajectory);
-
-
+  
+    
   void reverse();
 
   void unwind();
   void unwind(const robot_state::RobotState &state);
-
-  /** @brief Finds the waypoint indicies before and after a duration from start.
-   *  @param The duration from start.
-   *  @param The waypoint index before the supplied duration.
-   *  @param The waypoint index after (or equal to) the supplied duration.
-   *  @param The progress (0 to 1) between the two waypoints, based on time (not based on joint distances).
-   */
-  void findWayPointIndicesForDurationAfterStart(const double& duration, int& before, int& after, double &blend) const;
-
-  // TODO support visitor function for interpolation, or at least different types.
-  /** @brief Gets a robot state corresponding to a supplied duration from start for the trajectory, using linear time interpolation.
-   *  @param The duration from start.
-   *  @param The resulting robot state.
-   *  @return True if state is valid, false otherwise (trajectory is empty).
-   */
-  bool getStateAtDurationFromStart(const double request_duration,
-                                   robot_state::RobotStatePtr& output_state) const;
-
+  
 private:
 
   robot_model::RobotModelConstPtr kmodel_;

@@ -98,7 +98,7 @@ public:
 
     // get the specified start state
     robot_state::RobotState start_state = planning_scene->getCurrentState();
-    robot_state::robotStateMsgToRobotState(planning_scene->getTransforms(), req.start_state, start_state);
+    robot_state::robotStateMsgToRobotState(*planning_scene->getTransforms(), req.start_state, start_state);
 
     collision_detection::CollisionRequest creq;
     creq.group_name = req.group_name;
@@ -116,7 +116,7 @@ public:
         ROS_INFO("Start state appears to be in collision");
       else
         ROS_INFO_STREAM("Start state appears to be in collision with respect to group " << creq.group_name);
-
+      
       robot_state::RobotStatePtr prefix_state(new robot_state::RobotState(start_state));
       random_numbers::RandomNumberGenerator rng;
 
@@ -150,10 +150,11 @@ public:
         planning_interface::MotionPlanRequest req2 = req;
         robot_state::robotStateToRobotStateMsg(start_state, req2.start_state);
         bool solved = planner(planning_scene, req2, res);
-        if (solved && !res.trajectory_->empty())
+        if (solved)
         {
-          // heuristically decide a duration offset for the trajectory (induced by the additional point added as a prefix to the computed trajectory)
-          res.trajectory_->setWayPointDurationFromPrevious(0, std::min(max_dt_offset_, res.trajectory_->getAverageSegmentDuration()));
+          if (!res.trajectory_->empty())
+            // heuristically decide a duration offset for the trajectory (induced by the additional point added as a prefix to the computed trajectory)
+            res.trajectory_->setWayPointDurationFromPrevious(0, std::min(max_dt_offset_, res.trajectory_->getAverageSegmentDuration()));
           res.trajectory_->addPrefixWayPoint(prefix_state, 0.0);
           added_path_index.push_back(0);
         }

@@ -5,6 +5,14 @@ if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
+set(MSG_DEPS
+  std_msgs
+  actionlib_msgs
+  sensor_msgs
+  geometry_msgs
+  shape_msgs
+  moveit_msgs)
+
 find_package(Eigen REQUIRED)
 find_package(Boost REQUIRED system filesystem date_time program_options signals thread)
 find_package(catkin REQUIRED COMPONENTS
@@ -16,21 +24,31 @@ find_package(catkin REQUIRED COMPONENTS
   rosconsole
   dynamic_reconfigure
   message_filters
+  orocos_kdl
   srdfdom
   urdf
   tf
   tf_conversions
+  genmsg
+  ${MSG_DEPS}
 )
 
 find_package(Qt4 COMPONENTS QtCore QtGui REQUIRED)
 
 include(${QT_USE_FILE})
 
-generate_dynamic_reconfigure_options(
-  "planning_scene_monitor/cfg/PlanningSceneMonitorDynamicReconfigure.cfg"
-  "trajectory_execution_manager/cfg/TrajectoryExecutionDynamicReconfigure.cfg"
-  "plan_execution/cfg/PlanExecutionDynamicReconfigure.cfg"
-  "plan_execution/cfg/SenseForPlanDynamicReconfigure.cfg")
+set(MSG_FILES
+  Progress.msg
+  WorkspacePoint.msg
+  WorkspacePoints.msg)
+
+#add_message_files(DIRECTORY kinematics_reachability/msg FILES ${MSG_FILES})
+#generate_messages(DEPENDENCIES ${MSG_DEPS})
+
+#generate_dynamic_reconfigure_options(
+#  "planning_scene_monitor/cfg/PlanningSceneMonitorDynamicReconfigure.cfg"
+#  "plan_execution/cfg/PlanExecutionDynamicReconfigure.cfg"
+#  "plan_execution/cfg/SenseForPlanDynamicReconfigure.cfg")
 
 set(THIS_PACKAGE_INCLUDE_DIRS
     rdf_loader/include
@@ -42,6 +60,7 @@ set(THIS_PACKAGE_INCLUDE_DIRS
     trajectory_execution_manager/include
     plan_execution/include
     kdl_kinematics_plugin/include
+#    kinematics_reachability/include
 )
 
 catkin_package(
@@ -81,9 +100,10 @@ add_subdirectory(constraint_sampler_manager_loader)
 add_subdirectory(planning_pipeline)
 add_subdirectory(planning_request_adapter_plugins)
 add_subdirectory(planning_scene_monitor)
-add_subdirectory(planning_components_tools)
+add_subdirectory(planning_scene_monitor_tools)
 add_subdirectory(trajectory_execution_manager)
 add_subdirectory(plan_execution)
+#add_subdirectory(kinematics_reachability)
 
 install(
   FILES

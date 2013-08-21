@@ -34,6 +34,10 @@ LinkScale.msg
 MotionPlanRequest.msg
 MotionPlanResponse.msg
 MotionPlanDetailedResponse.msg
+BenchmarkPluginRequest.msg
+BenchmarkPluginResponse.msg
+BenchmarkPipelineRequest.msg
+BenchmarkPipelineResponse.msg
 MoveItErrorCodes.msg
 MultiDOFJointState.msg
 MultiDOFJointTrajectory.msg
@@ -44,7 +48,6 @@ OrientationConstraint.msg
 OrientedBoundingBox.msg
 PlannerInterfaceDescription.msg
 PlanningScene.msg
-PlanningSceneComponents.msg
 PlanningSceneWorld.msg
 PlanningOptions.msg
 PositionConstraint.msg
@@ -57,11 +60,13 @@ PositionIKRequest.msg
 )
 
 set(SRV_FILES
+ComputePlanningPluginsBenchmark.srv
+ComputePlanningPipelineBenchmark.srv
+ConstructConstraintApproximation.srv
 GetMotionPlan.srv
 ExecuteKnownTrajectory.srv
 GetStateValidity.srv
 GetCartesianPath.srv
-GetPlanningScene.srv
 QueryPlannerInterfaces.srv
 GetConstraintAwarePositionIK.srv
 GetKinematicSolverInfo.srv

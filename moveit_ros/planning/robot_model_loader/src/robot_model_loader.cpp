@@ -35,22 +35,20 @@
 /* Author: Ioan Sucan, E. Gil Jones */
 
 #include <moveit/robot_model_loader/robot_model_loader.h>
-#include <moveit/profiler/profiler.h>
 #include <ros/ros.h>
 
-robot_model_loader::RobotModelLoader::RobotModelLoader(const std::string &robot_description, bool load_kinematics_solvers)
+robot_model_loader::RDFLoader::RDFLoader(const std::string &robot_description)
 {
   Options opt(robot_description);
-  opt.load_kinematics_solvers_ = load_kinematics_solvers;
   configure(opt);
 }
 
-robot_model_loader::RobotModelLoader::RobotModelLoader(const Options &opt)
+robot_model_loader::RDFLoader::RDFLoader(const Options &opt)
 {
   configure(opt);
 }
 
-robot_model_loader::RobotModelLoader::~RobotModelLoader()
+robot_model_loader::RDFLoader::~RDFLoader()
 {
   model_.reset();
   rdf_loader_.reset();
@@ -61,7 +59,7 @@ namespace
 {
 
 bool canSpecifyPosition(const robot_model::JointModel *jmodel, const unsigned int index)
-{
+{  
   bool ok = false;
   if (jmodel->getType() == robot_model::JointModel::PLANAR && index == 2)
     ROS_ERROR("Cannot specify position limits for orientation of planar joint '%s'", jmodel->getName().c_str());
@@ -78,33 +76,25 @@ bool canSpecifyPosition(const robot_model::JointModel *jmodel, const unsigned in
 }
 }
 
-void robot_model_loader::RobotModelLoader::configure(const Options &opt)
+void robot_model_loader::RDFLoader::configure(const Options &opt)
 {
-  moveit::Profiler::ScopedStart prof_start;
-  moveit::Profiler::ScopedBlock prof_block("RobotModelLoader::configure");
-
   ros::WallTime start = ros::WallTime::now();
-  if (opt.urdf_doc_ && opt.srdf_doc_)
-    rdf_loader_.reset(new rdf_loader::RDFLoader(opt.urdf_doc_, opt.srdf_doc_));
-  else
-    if (!opt.urdf_string_.empty() && !opt.srdf_string_.empty())
-      rdf_loader_.reset(new rdf_loader::RDFLoader(opt.urdf_string_, opt.srdf_string_));
-    else
-      rdf_loader_.reset(new rdf_loader::RDFLoader(opt.robot_description_));
+  rdf_loader_.reset(new rdf_loader::RDFLoader(opt.robot_description_));
   if (rdf_loader_->getURDF())
   {
     const boost::shared_ptr<srdf::Model> &srdf = rdf_loader_->getSRDF() ? rdf_loader_->getSRDF() : boost::shared_ptr<srdf::Model>(new srdf::Model());
-    model_.reset(new robot_model::RobotModel(rdf_loader_->getURDF(), srdf));
+    if (opt.root_link_.empty())
+      model_.reset(new robot_model::RobotModel(rdf_loader_->getURDF(), srdf));
+    else
+      model_.reset(new robot_model::RobotModel(rdf_loader_->getURDF(), srdf, opt.root_link_));
   }
 
-  if (model_ && !rdf_loader_->getRobotDescription().empty())
+  if (model_)
   {
-    moveit::Profiler::ScopedBlock prof_block2("RobotModelLoader::configure joint limits");
-
     // if there are additional joint limits specified in some .yaml file, read those in
     ros::NodeHandle nh("~");
     std::map<std::string, std::vector<moveit_msgs::JointLimits> > individual_joint_limits_map;
-
+    
     for (unsigned int i = 0; i < model_->getJointModels().size() ; ++i)
     {
       robot_model::JointModel *jmodel = model_->getJointModels()[i];
@@ -112,7 +102,7 @@ void robot_model_loader::RobotModelLoader::configure(const Options &opt)
       for(unsigned int j = 0; j < jlim.size(); ++j)
       {
         std::string prefix = rdf_loader_->getRobotDescription() + "_planning/joint_limits/" + jlim[j].joint_name + "/";
-
+        
         double max_position;
         if (nh.getParam(prefix + "max_position", max_position))
         {
@@ -156,7 +146,7 @@ void robot_model_loader::RobotModelLoader::configure(const Options &opt)
         bool has_vel_limits;
         if (nh.getParam(prefix + "has_velocity_limits", has_vel_limits))
           jlim[j].has_velocity_limits = has_vel_limits;
-
+        
         double max_acc;
         if (nh.getParam(prefix + "max_acceleration", max_acc))
         {
@@ -171,7 +161,7 @@ void robot_model_loader::RobotModelLoader::configure(const Options &opt)
       individual_joint_limits_map[jmodel->getName()] = jlim;
     }
     const std::map<std::string, robot_model::JointModelGroup*> &jmgm = model_->getJointModelGroupMap();
-    for (std::map<std::string, robot_model::JointModelGroup*>::const_iterator it = jmgm.begin() ; it != jmgm.end() ; ++it)
+    for (std::map<std::string, robot_model::JointModelGroup*>::const_iterator it = jmgm.begin() ; it != jmgm.end() ; ++it) 
     {
       std::vector<moveit_msgs::JointLimits> group_joint_limits;
       for(unsigned int i = 0; i < it->second->getJointModelNames().size(); i++)
@@ -181,67 +171,45 @@ void robot_model_loader::RobotModelLoader::configure(const Options &opt)
                                   individual_joint_limits_map[it->second->getJointModelNames()[i]].end());
       }
       it->second->setVariableLimits(group_joint_limits);
-    }
+    }  
+    if (opt.load_kinematics_solvers_)
+      loadKinematicsSolvers();
   }
-
-  if (model_ && opt.load_kinematics_solvers_)
-    loadKinematicsSolvers();
-
   ROS_DEBUG_STREAM("Loaded kinematic model in " << (ros::WallTime::now() - start).toSec() << " seconds");
 }
 
-void robot_model_loader::RobotModelLoader::loadKinematicsSolvers(const kinematics_plugin_loader::KinematicsPluginLoaderPtr &kloader)
+void robot_model_loader::RDFLoader::loadKinematicsSolvers()
 {
-  moveit::Profiler::ScopedStart prof_start;
-  moveit::Profiler::ScopedBlock prof_block("RobotModelLoader::loadKinematicsSolvers");
-
   if (rdf_loader_ && model_)
   {
     // load the kinematics solvers
-    if (kloader)
-      kinematics_loader_ = kloader;
-    else
-      kinematics_loader_.reset(new kinematics_plugin_loader::KinematicsPluginLoader(rdf_loader_->getRobotDescription()));
-    robot_model::SolverAllocatorFn kinematics_allocator = kinematics_loader_->getLoaderFunction(rdf_loader_->getSRDF());
+    kinematics_loader_.reset(new kinematics_plugin_loader::KinematicsPluginLoader(rdf_loader_->getRobotDescription()));
+    kinematics_plugin_loader::KinematicsLoaderFn kinematics_allocator = kinematics_loader_->getLoaderFunction(rdf_loader_->getSRDF());
     const std::vector<std::string> &groups = kinematics_loader_->getKnownGroups();
-    std::stringstream ss;
-    std::copy(groups.begin(), groups.end(), std::ostream_iterator<std::string>(ss, " "));
-    ROS_DEBUG_STREAM("Loaded information about the following groups: '" << ss.str() << "'");
-
     std::map<std::string, robot_model::SolverAllocatorFn> imap;
     for (std::size_t i = 0 ; i < groups.size() ; ++i)
-    {
-      if (!model_->hasJointModelGroup(groups[i]))
-        continue;
-      const robot_model::JointModelGroup *jmg = model_->getJointModelGroup(groups[i]);
-      if (jmg->isChain())
-        imap[groups[i]] = kinematics_allocator;
-    }
+      imap[groups[i]] = kinematics_allocator;
     model_->setKinematicsAllocators(imap);
 
     // set the default IK timeouts
     const std::map<std::string, double> &timeout = kinematics_loader_->getIKTimeout();
     for (std::map<std::string, double>::const_iterator it = timeout.begin() ; it != timeout.end() ; ++it)
     {
-      if (!model_->hasJointModelGroup(it->first))
-        continue;
       robot_model::JointModelGroup *jmg = model_->getJointModelGroup(it->first);
       jmg->setDefaultIKTimeout(it->second);
-    }
+    } 
 
     // set the default IK attempts
     const std::map<std::string, unsigned int> &attempts = kinematics_loader_->getIKAttempts();
     for (std::map<std::string, unsigned int>::const_iterator it = attempts.begin() ; it != attempts.end() ; ++it)
     {
-      if (!model_->hasJointModelGroup(it->first))
-        continue;
       robot_model::JointModelGroup *jmg = model_->getJointModelGroup(it->first);
       jmg->setDefaultIKAttempts(it->second);
     }
   }
 }
 
-std::map<std::string, kinematics::KinematicsBasePtr> robot_model_loader::RobotModelLoader::generateKinematicsSolversMap() const
+std::map<std::string, kinematics::KinematicsBasePtr> robot_model_loader::RDFLoader::generateKinematicsSolversMap() const
 {
   std::map<std::string, kinematics::KinematicsBasePtr> result;
   if (kinematics_loader_ && model_)
@@ -249,15 +217,10 @@ std::map<std::string, kinematics::KinematicsBasePtr> robot_model_loader::RobotMo
     const std::vector<std::string> &groups = kinematics_loader_->getKnownGroups();
     for (std::size_t i = 0 ; i < groups.size() ; ++i)
     {
-      if (!model_->hasJointModelGroup(groups[i]))
-        continue;
       const robot_model::JointModelGroup *jmg = model_->getJointModelGroup(groups[i]);
-      if (jmg)
-      {
-        robot_model::SolverAllocatorFn a = jmg->getSolverAllocators().first;
-        if (a)
-          result[jmg->getName()] = a(jmg);
-      }
+      robot_model::SolverAllocatorFn a = jmg->getSolverAllocators().first;
+      if (a)
+        result[jmg->getName()] = a(jmg);
     }
   }
   else

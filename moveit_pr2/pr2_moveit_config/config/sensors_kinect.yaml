@@ -1,8 +1,78 @@
 sensors:
-  - sensor_plugin: occupancy_map_monitor/PointCloudOctomapUpdater
+  - sensor_type: ~depth_image_sensor
+    image_topic: /head_mount_kinect/depth_registered/image_raw
+    queue_size: 5
+    near_clipping_plane_distance: 0.3
+    far_clipping_plane_distance: 5.0
+    shadow_threshold: 0.5
+    padding_scale: 2.0
+    padding_offset: 0.01
+  - sensor_type: point_cloud_sensor
     point_cloud_topic: /head_mount_kinect/depth_registered/points
     max_range: 5.0
+    frame_subsample: 1
     point_subsample: 1
-    shape_padding: 0.1
-    shape_scale: 1.0
-    filtered_cloud_topic: filtered_cloud
+    self_mask:
+        min_sensor_dist: .1
+        self_see_default_padding: .01
+        self_see_default_scale: 1.0
+        self_see_links:
+          - name: l_upper_arm_link
+            padding: .1
+          - name: l_upper_arm_roll_link
+            padding: .1
+          - name: l_elbow_flex_link
+            padding: .1
+          - name: l_forearm_link
+            padding: .1
+          - name: l_forearm_roll_link
+            padding: .1
+          - name: l_wrist_flex_link
+            padding: .1
+          - name: l_wrist_roll_link
+            padding: .1
+          - name: l_gripper_palm_link
+            padding: .1
+          - name: l_gripper_l_finger_link
+            padding: .1
+          - name: l_gripper_l_finger_tip_link
+            padding: .1
+          - name: l_gripper_r_finger_link
+            padding: .1
+          - name: l_gripper_r_finger_tip_link
+            padding: .1
+          - name: l_shoulder_pan_link
+            padding: .1
+          - name: l_shoulder_lift_link
+            padding: .1
+          - name: r_upper_arm_link
+            padding: .1
+          - name: r_upper_arm_roll_link
+            padding: .1
+          - name: r_elbow_flex_link
+            padding: .1
+          - name: r_forearm_link
+            padding: .1
+          - name: r_forearm_roll_link
+            padding: .1
+          - name: r_wrist_flex_link
+            padding: .1
+          - name: r_wrist_roll_link
+            padding: .1
+          - name: r_gripper_palm_link
+            padding: .1
+          - name: r_gripper_l_finger_link
+            padding: .1
+          - name: r_gripper_l_finger_tip_link
+            padding: .1
+          - name: r_gripper_r_finger_link
+            padding: .1
+          - name: r_gripper_r_finger_tip_link
+            padding: .1
+          - name: r_shoulder_pan_link
+            padding: .1
+          - name: r_shoulder_lift_link
+            padding: .1
+          - name: base_link
+            padding: .1
+ 

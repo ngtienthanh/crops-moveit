@@ -89,8 +89,6 @@ class StartScreenWidget : public SetupScreenWidget
   QProgressBar *progress_bar_;
   QImage *right_image_;
   QLabel *right_image_label_;
-  QImage *logo_image_;
-  QLabel *logo_image_label_;
 
   /// Contains all the configuration data for the setup assistant
   moveit_setup_assistant::MoveItConfigDataPtr config_data_;
@@ -128,7 +126,7 @@ private:
   // ******************************************************************************************
   // Variables
   // ******************************************************************************************
-
+  
   /// Create new config files, or load previos one?
   bool create_new_package_;
 
@@ -145,7 +143,7 @@ private:
   /// Load URDF File to Parameter Server
   bool loadURDFFile( const std::string& urdf_file_path );
 
-  /// Load SRDF File
+  /// Load SRDF File 
   bool loadSRDFFile( const std::string& srdf_file_path );
 
   /// Put SRDF File on Parameter Server
@@ -187,6 +185,48 @@ class SelectModeWidget : public QFrame
   QPushButton *btn_exist_;
 
 };
+
+/*
+// ******************************************************************************************
+// ******************************************************************************************
+// Class for selecting urdf package and file
+// ******************************************************************************************
+// ******************************************************************************************
+class LoadURDFWidget : public QFrame
+{
+  Q_OBJECT
+
+private:
+
+private Q_SLOTS:
+
+  /// Load the folder dialog
+  void btn_folder_dialog();
+
+  /// Load the file dialog
+  void btn_file_dialog();
+
+public:
+  
+  /// Constructor
+  LoadURDFWidget( QWidget * parent=0 );
+
+  /// Name of package that contains URDF
+  QLineEdit *robot_desc_pkg_field_;
+
+  /// Relative path to URDF from URDF package
+  QLineEdit *relative_urdf_path_field_;
+
+  /// Remember the full path corresponding to the urdf package name, if available
+  std::string robot_desc_pkg_path_;
+
+  /// Get the full URDF path
+  const std::string getURDFPath();
+
+  /// Get the full robot description path
+  const std::string getURDFPackagePath();
+};
+*/
 
 }
 

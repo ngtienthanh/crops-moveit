@@ -86,7 +86,7 @@ class EndEffectorsWidget : public SetupScreenWidget
   QComboBox *group_name_field_;
   QWidget *effector_list_widget_;
   QWidget *effector_edit_widget_;
-
+                                                                                              
 private Q_SLOTS:
 
   // ******************************************************************************************
@@ -105,9 +105,6 @@ private Q_SLOTS:
   /// Preview whatever element is selected
   void previewClicked( int row, int column );
 
-  /// Preview the planning group that is selected
-  void previewClickedString( const QString& name );
-
   /// Delete currently editing ite
   void deleteSelected();
 
@@ -125,7 +122,7 @@ private:
 
   /// Contains all the configuration data for the setup assistant
   moveit_setup_assistant::MoveItConfigDataPtr config_data_;
-
+  
   /// Orignal name of effector currently being edited. This is used to find the element in the vector
   std::string current_edit_effector_;
 
@@ -133,49 +130,49 @@ private:
   // Private Functions
   // ******************************************************************************************
 
-  /**
+  /** 
    * Find the associated data by name
-   *
+   * 
    * @param name - name of data to find in datastructure
    * @return pointer to data in datastructure
    */
   srdf::Model::EndEffector *findEffectorByName( const std::string &name );
 
-  /**
+  /** 
    * Create the main list view of effectors for robot
-   *
+   * 
    * @return the widget
    */
   QWidget* createContentsWidget();
 
-  /**
+  /** 
    * Create the screen for editing effectors
-   *
+   * 
    * @return the widget
    */
   QWidget* createEditWidget();
-
-  /**
+  
+  /** 
    * Load the robot effectors into the table
-   *
+   * 
    */
   void loadDataTable();
 
-  /**
+  /** 
    * Populate the combo dropdown box with avail group names
-   *
+   * 
    */
   void loadGroupsComboBox();
 
-  /**
+  /** 
    * Populate the combo dropdown box with avail parent links
-   *
-   */
+   * 
+   */  
   void loadParentComboBox();
 
-  /**
+  /** 
    * Edit the effector with the input name
-   *
+   * 
    * @param name name of effector
    */
   void edit( const std::string &name );
@@ -187,3 +184,4 @@ private:
 
 
 #endif
+

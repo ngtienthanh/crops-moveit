@@ -32,12 +32,10 @@
 #
 # Author: Ioan Sucan
 
-import rospy
-from moveit_commander import RobotCommander, MoveGroupCommander, PlanningSceneInterface, MoveItCommanderException
-from geometry_msgs.msg import PoseStamped
+import roslib
+from moveit_commander import MoveGroupCommander, ObjectDetector, ObjectBroadcaster
 import re
 import time
-import os.path
 
 class MoveGroupInfoLevel:
     FAIL = 1
@@ -46,7 +44,7 @@ class MoveGroupInfoLevel:
     INFO = 4
     DEBUG = 5
 
-class MoveGroupCommandInterpreter(object):
+class MoveGroupCommandInterpreter:
     """
     Interpreter for simple commands
     """
@@ -59,13 +57,8 @@ class MoveGroupCommandInterpreter(object):
     def __init__(self):
         self._gdict = {}
         self._group_name = ""
-        self._prev_group_name = ""
-        self._planning_scene_interface = PlanningSceneInterface()
-        self._robot = RobotCommander()
-        self._last_plan = None
-        self._db_host = None
-        self._db_port = 33829
-        self._trace = False
+        self._detector = None
+        self._broadcaster = None
 
     def get_active_group(self):
         if len(self._group_name) > 0:
@@ -88,22 +81,13 @@ class MoveGroupCommandInterpreter(object):
                 return (MoveGroupInfoLevel.INFO, self.get_help() + "\n\nNo groups initialized yet. You must call the 'use' or the 'load' command first.\n")
 
     def execute_generic_command(self, cmd):
-        if os.path.isfile("cmd/" + cmd):
-            cmd = "load cmd/" + cmd
-        cmdlow = cmd.lower()
-        if cmdlow.startswith("use"):
-            if cmdlow == "use":
+        if cmd.startswith("use"):
+            if cmd == "use":
                 return (MoveGroupInfoLevel.INFO, "\n".join(self.get_loaded_groups()))
             clist = cmd.split()
-            clist[0] = clist[0].lower()
             if len(clist) == 2:
                 if clist[0] == "use":
-                    if clist[1] == "previous":
-                        clist[1] = self._prev_group_name
-                        if len(clist[1]) == 0:
-                            return (MoveGroupInfoLevel.DEBUG, "OK")
                     if self._gdict.has_key(clist[1]):
-                        self._prev_group_name = self._group_name
                         self._group_name = clist[1]
                         return (MoveGroupInfoLevel.DEBUG, "OK")
                     else:
@@ -112,57 +96,23 @@ class MoveGroupCommandInterpreter(object):
                             self._gdict[clist[1]] = mg
                             self._group_name = clist[1]
                             return (MoveGroupInfoLevel.DEBUG, "OK")
-                        except MoveItCommanderException as e:
-                            return (MoveGroupInfoLevel.FAIL, "Initializing " + clist[1] + ": " + str(e))
                         except:
                             return (MoveGroupInfoLevel.FAIL, "Unable to initialize " + clist[1])
-        elif cmdlow.startswith("trace"):
-            if cmdlow == "trace":
-                return (MoveGroupInfoLevel.INFO, "trace is on" if self._trace else "trace is off")
-            clist = cmdlow.split()
-            if clist[0] == "trace" and clist[1] == "on":
-                self._trace = True
-                return (MoveGroupInfoLevel.DEBUG, "OK")
-            if clist[0] == "trace" and clist[1] == "off":
-                self._trace = False
-                return (MoveGroupInfoLevel.DEBUG, "OK")
-        elif cmdlow.startswith("load"):
+        elif cmd.startswith("load"):
             filename = self.DEFAULT_FILENAME
             clist = cmd.split()
             if len(clist) > 2:
                 return (MoveGroupInfoLevel.WARN, "Unable to parse load command")
             if len(clist) == 2:
                 filename = clist[1]
-                if not os.path.isfile(filename):
-                    filename = "cmd/" + filename
-            line_num = 0
-            line_content = ""
             try:
                 f = open(filename, 'r')
                 for line in f:
-                    line_num += 1
-                    line = line.rstrip()
-                    line_content = line
-                    if self._trace:
-                        print ("%s:%d:  %s" % (filename, line_num, line_content))
-                    comment = line.find("#")
-                    if comment != -1:
-                      line = line[0:comment].rstrip()
-                    if line != "":
-                      self.execute(line.rstrip())
-                    line_content = ""
+                    self.execute(line)
                 return (MoveGroupInfoLevel.DEBUG, "OK")
-            except MoveItCommanderException as e:  
-                if line_num > 0:
-                    return (MoveGroupInfoLevel.WARN, "Error at %s:%d:  %s\n%s" % (filename, line_num, line_content, str(e)))
-                else:
-                    return (MoveGroupInfoLevel.WARN, "Processing " + filename + ": " + str(e))
             except:
-                if line_num > 0:
-                    return (MoveGroupInfoLevel.WARN, "Error at %s:%d:  %s" % (filename, line_num, line_content))
-                else:
-                    return (MoveGroupInfoLevel.WARN, "Unable to load " + filename)
-        elif cmdlow.startswith("save"):
+                return (MoveGroupInfoLevel.WARN, "Unable to load " + filename)
+        elif cmd.startswith("save"):
             filename = self.DEFAULT_FILENAME
             clist = cmd.split()
             if len(clist) > 2:
@@ -176,17 +126,20 @@ class MoveGroupCommandInterpreter(object):
                     known = self._gdict[gr].get_remembered_joint_values()
                     for v in known.keys():
                         f.write(v + " = [" + " ".join([str(x) for x in known[v]]) + "]\n")
-                if self._db_host != None:
-                    f.write("database " + self._db_host + " " + str(self._db_port) + "\n")
                 return (MoveGroupInfoLevel.DEBUG, "OK")
             except:
                 return (MoveGroupInfoLevel.WARN, "Unable to save " + filename)
+        elif cmd.startswith("detect"):
+            clist = cmd.split()
+            if len(clist) >= 2:
+                return self.command_detect(float(clist[1]))
+            else:
+                return self.command_detect(0.5)  
         else:
             return None
 
-    def execute_group_command(self, g, cmdorig):
-        cmd = cmdorig.lower()
-
+    def execute_group_command(self, g, cmd):
+        
         if cmd == "stop":
             g.stop()
             return (MoveGroupInfoLevel.DEBUG, "OK")
@@ -211,56 +164,14 @@ class MoveGroupCommandInterpreter(object):
         if cmd == "current":
             return self.command_current(g)
 
-        if cmd == "ground":
-            pose = PoseStamped()
-            pose.pose.position.x = 0
-            pose.pose.position.y = 0
-            # offset such that the box is 0.1 mm below ground (to prevent collision with the robot itself)
-            pose.pose.position.z = -0.0501
-            pose.pose.orientation.x = 0
-            pose.pose.orientation.y = 0
-            pose.pose.orientation.z = 0
-            pose.pose.orientation.w = 1
-            pose.header.stamp = rospy.get_rostime()
-            pose.header.frame_id = self._robot.get_root_link()
-            self._planning_scene_interface.attach_box(self._robot.get_root_link(), "ground", pose, (3, 3, 0.1))
-            return (MoveGroupInfoLevel.INFO, "Added ground")
-
         if cmd == "eef":
             if len(g.get_end_effector_link()) > 0:
                 return (MoveGroupInfoLevel.INFO, g.get_end_effector_link())
             else:
                 return (MoveGroupInfoLevel.INFO, "There is no end effector defined")
-
-        if cmd == "database":
-            if self._db_host == None:
-                return (MoveGroupInfoLevel.INFO, "Not connected to a database")
-            else:
-                return (MoveGroupInfoLevel.INFO, "Connected to " + self._db_host + ":" + str(self._db_port))
-        if cmd == "plan":
-            if self._last_plan != None:
-                return (MoveGroupInfoLevel.INFO, str(self._last_plan))
-            else:
-                return (MoveGroupInfoLevel.INFO, "No previous plan")
-
-        if cmd == "constrain":
-            g.clear_path_constraints()
-            return (MoveGroupInfoLevel.SUCCESS, "Cleared path constraints")
-
+            
         if cmd == "tol" or cmd == "tolerance":
-            return (MoveGroupInfoLevel.INFO, "Joint = %0.6g, Position = %0.6g, Orientation = %0.6g" % g.get_goal_tolerance())
-
-        if cmd == "time":
-            return (MoveGroupInfoLevel.INFO, str(g.get_planning_time()))
-
-        if cmd == "execute":
-            if self._last_plan != None:
-                if g.execute(self._last_plan):
-                    return (MoveGroupInfoLevel.SUCCESS, "Plan submitted for execution")
-                else:
-                    return (MoveGroupInfoLevel.WARN, "Failed to submit plan for execution")
-            else:
-                return (MoveGroupInfoLevel.WARN, "No motion plan computed")
+            return (MoveGroupInfoLevel.INFO, str(g.get_goal_tolerance()))
 
         # see if we have assignment between variables
         assign_match = re.match(r"^(\w+)\s*=\s*(\w+)$", cmd)
@@ -296,8 +207,7 @@ class MoveGroupCommandInterpreter(object):
             else:
                 return (MoveGroupInfoLevel.WARN, "Unknown command: '" + cmd + "'")
 
-        clist = cmdorig.split()
-        clist[0] = clist[0].lower()
+        clist = cmd.split()
 
         # if this is an unknown one-word command, it is probably a variable
         if len(clist) == 1:
@@ -310,14 +220,12 @@ class MoveGroupCommandInterpreter(object):
         # command with one argument
         if len(clist) == 2:
             if clist[0] == "go":
-                self._last_plan = None
                 if clist[1] == "rand" or clist[1] == "random":
-                    vals = g.get_random_joint_values()
-                    g.set_joint_value_target(vals)
+                    g.set_random_target()
                     if g.go():
-                        return (MoveGroupInfoLevel.SUCCESS, "Moved to random target [" + " ".join([str(x) for x in vals]) + "]")
+                        return (MoveGroupInfoLevel.SUCCESS, "Moved to random target")
                     else:
-                        return (MoveGroupInfoLevel.FAIL, "Failed while moving to random target [" + " ".join([str(x) for x in vals]) + "]")
+                        return (MoveGroupInfoLevel.FAIL, "Failed while moving to random target")
                 else:
                     try:
                         g.set_named_target(clist[1])
@@ -325,50 +233,8 @@ class MoveGroupCommandInterpreter(object):
                             return (MoveGroupInfoLevel.SUCCESS, "Moved to " + clist[1])
                         else:
                             return (MoveGroupInfoLevel.FAIL, "Failed while moving to " + clist[1])
-                    except MoveItCommanderException as e:
-                        return (MoveGroupInfoLevel.WARN, "Going to " + clist[1] + ": " + str(e))
                     except:
                         return (MoveGroupInfoLevel.WARN, clist[1] + " is unknown")
-            if clist[0] == "plan":
-                self._last_plan = None
-                vals = None
-                if clist[1] == "rand" or clist[1] == "random":
-                    vals = g.get_random_joint_values()
-                    g.set_joint_value_target(vals)
-                    self._last_plan = g.plan()
-                else:
-                    try:
-                        g.set_named_target(clist[1])
-                        self._last_plan = g.plan()
-                    except MoveItCommanderException as e:
-                        return (MoveGroupInfoLevel.WARN, "Planning to " + clist[1] + ": " + str(e))
-                    except:
-                        return (MoveGroupInfoLevel.WARN, clist[1] + " is unknown")
-                if self._last_plan != None:
-                    if len(self._last_plan.joint_trajectory.points) == 0 and len(self._last_plan.multi_dof_joint_trajectory.points) == 0:
-                        self._last_plan = None
-                dest_str = clist[1]
-                if vals != None:
-                    dest_str = "[" + " ".join([str(x) for x in vals]) + "]"
-                if self._last_plan != None:
-                    return (MoveGroupInfoLevel.SUCCESS, "Planned to " + dest_str)
-                else:
-                    return (MoveGroupInfoLevel.FAIL, "Failed while planning to " + dest_str)
-            elif clist[0] == "pick":
-                self._last_plan = None
-                if g.pick(clist[1]):
-                    return (MoveGroupInfoLevel.SUCCESS, "Picked object " + clist[1])
-                else:
-                    return (MoveGroupInfoLevel.FAIL, "Failed while trying to pick object " + clist[1])
-            elif clist[0] == "place":
-                self._last_plan = None
-                if g.place(clist[1]):
-                    return (MoveGroupInfoLevel.SUCCESS, "Placed object " + clist[1])
-                else:
-                    return (MoveGroupInfoLevel.FAIL, "Failed while trying to place object " + clist[1])
-            elif clist[0] == "planner":
-                g.set_planner_id(clist[1])
-                return (MoveGroupInfoLevel.SUCCESS, "Planner is now " + clist[1])
             elif clist[0] == "record" or clist[0] == "rec":
                 g.remember_joint_values(clist[1])
                 return (MoveGroupInfoLevel.SUCCESS, "Remembered current joint values under the name " + clist[1])
@@ -390,46 +256,27 @@ class MoveGroupCommandInterpreter(object):
                     return (MoveGroupInfoLevel.SUCCESS, "OK")
                 except:
                     return (MoveGroupInfoLevel.WARN, "Unable to parse tolerance value '" + clist[1] + "'")
-            elif clist[0] == "time":
-                try:
-                    g.set_planning_time(float(clist[1]))
-                    return (MoveGroupInfoLevel.SUCCESS, "OK")
-                except:
-                    return (MoveGroupInfoLevel.WARN, "Unable to parse planning duration value '" + clist[1] + "'")
             elif clist[0] == "constrain":
                 try:
                     g.set_path_constraints(clist[1])
                     return (MoveGroupInfoLevel.SUCCESS, "OK")
                 except:
-                    if self._db_host != None:
-                        return (MoveGroupInfoLevel.WARN, "Constraint " + clist[1] + " is not known.")
-                    else:
-                        return (MoveGroupInfoLevel.WARN, "Not connected to a database.")
+                    return (MoveGroupInfoLevel.WARN, "Constraint " + clist[1] + " is not known")
             elif clist[0] == "wait":
                 try:
                     time.sleep(float(clist[1]))
                     return (MoveGroupInfoLevel.SUCCESS, clist[1] + " seconds passed")
                 except:
                     return (MoveGroupInfoLevel.WARN, "Unable to wait '" + clist[1] + "' seconds")
-            elif clist[0] == "database":
-                try:
-                    g.set_constraints_database(clist[1], self._db_port)
-                    self._db_host = clist[1]
-                    return (MoveGroupInfoLevel.SUCCESS, "Connected to " + self._db_host + ":" + str(self._db_port))
-                except:
-                    return (MoveGroupInfoLevel.WARN, "Unable to connect to '" + clist[1] + ":" + str(self._db_port) + "'")
             else:
                 return (MoveGroupInfoLevel.WARN, "Unknown command: '" + cmd + "'")
 
         if len(clist) == 3:
-            if clist[0] == "go" and self.GO_DIRS.has_key(clist[1]):
-                self._last_plan = None
+            if clist[0] == "go" and self.GO_DIRS.has_key(clist[1]):     
                 try:
                     offset = float(clist[2])
                     (axis, factor) = self.GO_DIRS[clist[1]]
                     return self.command_go_offset(g, offset, factor, axis, clist[1])
-                except MoveItCommanderException as e:
-                    return (MoveGroupInfoLevel.WARN, "Going " + clist[1] + ": " + str(e))
                 except:
                     return (MoveGroupInfoLevel.WARN, "Unable to parse distance '" + clist[2] + "'")
             elif clist[0] == "allow" and (clist[1] == "look" or clist[1] == "looking"):
@@ -444,25 +291,14 @@ class MoveGroupCommandInterpreter(object):
                 else:
                     g.allow_replanning(False)
                 return (MoveGroupInfoLevel.DEBUG, "OK")
-            elif clist[0] == "database":
-                try:
-                    g.set_constraints_database(clist[1], int(clist[2]))
-                    self._db_host = clist[1]
-                    self._db_port = int(clist[2])
-                    return (MoveGroupInfoLevel.SUCCESS, "Connected to " + self._db_host + ":" + str(self._db_port))
-                except:
-                    self._db_host = None
-                    return (MoveGroupInfoLevel.WARN, "Unable to connect to '" + clist[1] + ":" + clist[2] + "'")
         if len(clist) == 4:
             if clist[0] == "rotate":
                 try:
-                    g.set_rpy_target([float(x) for x in clist[1:]])
+                    g.set_orientation_target([float(x) for x in clist[1:]])
                     if g.go():
                         return (MoveGroupInfoLevel.SUCCESS, "Rotation complete")
                     else:
                         return (MoveGroupInfoLevel.FAIL, "Failed while rotating to " + " ".join(clist[1:]))
-                except MoveItCommanderException as e:
-                    return (MoveGroupInfoLevel.WARN, str(e))
                 except:
                     return (MoveGroupInfoLevel.WARN, "Unable to parse X-Y-Z rotation  values '" + " ".join(clist[1:]) + "'")
 
@@ -479,7 +315,6 @@ class MoveGroupCommandInterpreter(object):
         res = "joints = [" + " ".join([str(x) for x in g.get_current_joint_values()]) + "]"
         if len(g.get_end_effector_link()) > 0:
             res = res + "\n" + g.get_end_effector_link() + " pose = [\n" + str(g.get_current_pose()) + " ]"
-            res = res + "\n" + g.get_end_effector_link() + " RPY = " + str(g.get_current_rpy())
         return (MoveGroupInfoLevel.INFO, res)
 
     def command_go_offset(self, g, offset, factor, dimension_index, direction_name):
@@ -490,55 +325,56 @@ class MoveGroupCommandInterpreter(object):
                     return (MoveGroupInfoLevel.SUCCESS, "Moved " + direction_name + " by " + str(offset) + " m")
                 else:
                     return (MoveGroupInfoLevel.FAIL, "Failed while moving " + direction_name)
-            except MoveItCommanderException as e:
-                return (MoveGroupInfoLevel.WARN, str(e))
             except:
                 return (MoveGroupInfoLevel.WARN, "Unable to process pose update")
         else:
             return (MoveGroupInfoLevel.WARN, "No known end effector. Cannot move " + direction_name)
 
-    def resolve_command_alias(self, cmdorig):
-        cmd = cmdorig.lower()
+    def command_detect(self, confidence):
+        if self._broadcaster is None:
+            self._broadcaster = ObjectBroadcaster()
+        if self._detector is None:
+            self._detector = ObjectDetector(self._broadcaster.broadcast)
+            self._detector.start_action_client()
+        self._broadcaster.set_minimum_confidence(confidence)
+        self._detector.trigger_detection()
+        return (MoveGroupInfoLevel.SUCCESS, "OK")
+
+    def resolve_command_alias(self, cmd):
         if cmd == "which":
-            return "id"
+            cmd = "id"
         if cmd == "groups":
-            return "use"
-        return cmdorig
+            cmd = "use"
+        return cmd
 
     def get_help(self):
         res = []
         res.append("Known commands:")
-        res.append("  help                show this screen")
-        res.append("  id|which            display the name of the group that is operated on")
-        res.append("  load [<file>]       load a set of interpreted commands from a file")
-        res.append("  save [<file>]       save the currently known variables as a set of commands")
-        res.append("  use <name>          switch to using the group named <name> (and load it if necessary)")
-        res.append("  use|groups          show the group names that are already loaded")
-        res.append("  vars                display the names of the known states")
-        res.append("  show                display the names and values of the known states")
-        res.append("  show <name>         display the value of a state")
-        res.append("  record <name>       record the current joint values under the name <name>")
-        res.append("  delete <name>       forget the joint values under the name <name>")
-        res.append("  current             show the current state of the active group")
-        res.append("  constrain <name>    use the constraint <name> as a path constraint")
-        res.append("  constrain           clear path constraints")
-        res.append("  eef                 print the name of the end effector attached to the current group")
-        res.append("  go <name>           plan and execute a motion to the state <name>")
-        res.append("  go <dir> <dx>|      plan and execute a motion in direction up|down|left|right|forward|backward for distance <dx>")
-        res.append("  go rand             plan and execute a motion to a random state")
-        res.append("  plan <name>         plan a motion to the state <name>")
-        res.append("  execute             execute a previously computed motion plan")
-        res.append("  rotate <x> <y> <z>  plan and execute a motion to a specified orientation (about the X,Y,Z axes)")
-        res.append("  tolerance           show the tolerance for reaching the goal region")
-        res.append("  tolerance <val>     set the tolerance for reaching the goal region")
-        res.append("  wait <dt>           sleep for <dt> seconds")
-        res.append("  x = y               assign the value of y to x")
-        res.append("  x[idx] = val        assign a value to dimension idx of x")
-        res.append("  x = [v1 v2...]      assign a vector of values to x")
-        res.append("  trace <on|off>      enable/disable replanning or looking around")
-        res.append("  ground              add a ground plane to the planning scene")
-        res.append("  allow replanning <true|false>    enable/disable replanning")
-        res.append("  allow looking <true|false>       enable/disable looking around")
+        res.append("  help\t\t show this screen")
+        res.append("  id|which\t display the name of the group that is operated on")
+        res.append("  load [<file>]\t load a set of interpreted commands from a file")
+        res.append("  save [<file>]\t save the currently known variables as a set of commands")
+        res.append("  use <name>\t switch to using the group named <name> (and load it if necessary)")
+        res.append("  use|groups\t show the group names that are already loaded")
+        res.append("  vars\t\t display the names of the known states")
+        res.append("  show\t\t display the names and values of the known states")
+        res.append("  show <name>\t display the value of a state")
+        res.append("  record <name>\t record the current joint values under the name <name>")
+        res.append("  delete <name>\t forget the joint values under the name <name>")
+        res.append("  current\t show the current state of the active group")
+        res.append("  constrain <name>\t use the constraint <name> as a path constraint")
+        res.append("  eef\t print the name of the end effector attached to the current group")
+        res.append("  go <name>\t plan and execute a motion to the state <name>")
+        res.append("  go <dir> <dx>|\t plan and execute a motion in direction up|down|left|right|forward|backward for distance <dx>")
+        res.append("  go rand\t plan and execute a motion to a random state")
+        res.append("  rotate <x> <y> <z>\t plan and execute a motion to a specified orientation (about the X,Y,Z axes)")
+        res.append("  tolerance\t show the tolerance for reaching the goal region")
+        res.append("  tolerance <val>\t set the tolerance for reaching the goal region")
+        res.append("  allow <replanning|looking> <T|F> \t enable/disable replanning or looking around")
+        res.append("  wait <dt>\t sleep for <dt> seconds")
+        res.append("  x = y\t\t assign the value of y to x")
+        res.append("  x[idx] = val\t assign a value to dimension idx of x")
+        res.append("  x = [v1 v2...] assign a vector of values to x")
         return "\n".join(res)
 
     def get_keywords(self):
@@ -547,28 +383,22 @@ class MoveGroupCommandInterpreter(object):
         if self.get_active_group() != None:
             known_vars = self.get_active_group().get_remembered_joint_values().keys()
             known_constr = self.get_active_group().get_known_constraints()
-        groups = self._robot.get_group_names()
+        groups = self.get_loaded_groups()
         return {'go':['up', 'down', 'left', 'right', 'backward', 'forward', 'random'] + known_vars,
                 'help':[],
                 'record':known_vars,
                 'show':known_vars,
                 'wait':[],
                 'delete':known_vars,
-                'database': [],
                 'current':[],
                 'use':groups,
                 'load':[],
                 'save':[],
-                'pick':[],
-                'place':[],
-                'plan':known_vars,
                 'allow':['replanning', 'looking'],
                 'constrain':known_constr,
+                'detect':[],
                 'vars':[],
                 'joints':[],
                 'tolerance':[],
-                'time':[],
                 'eef':[],
-                'execute':[],
-                'ground':[],
                 'id':[]}

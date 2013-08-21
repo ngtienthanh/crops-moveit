@@ -29,12 +29,11 @@
 
 /* Author: Ioan Sucan */
 
+#include <moveit/motion_planning_rviz_plugin/motion_planning_frame.h>
+#include <moveit/motion_planning_rviz_plugin/motion_planning_display.h>
 #include <moveit/warehouse/planning_scene_storage.h>
 #include <moveit/warehouse/constraints_storage.h>
 #include <moveit/warehouse/state_storage.h>
-
-#include <moveit/motion_planning_rviz_plugin/motion_planning_frame.h>
-#include <moveit/motion_planning_rviz_plugin/motion_planning_display.h>
 
 #include <rviz/display_context.h>
 #include <rviz/window_manager_interface.h>
@@ -49,7 +48,7 @@ namespace moveit_rviz_plugin
 
 void MotionPlanningFrame::databaseConnectButtonClicked()
 {
-  planning_display_->addBackgroundJob(boost::bind(&MotionPlanningFrame::computeDatabaseConnectButtonClicked, this), "connect to database");
+  planning_display_->addBackgroundJob(boost::bind(&MotionPlanningFrame::computeDatabaseConnectButtonClicked, this));
 }
 
 void MotionPlanningFrame::publishSceneButtonClicked()
@@ -95,7 +94,7 @@ void MotionPlanningFrame::resetDbButtonClicked()
                             QMessageBox::Yes | QMessageBox::No) == QMessageBox::No)
     return;
 
-  planning_display_->addBackgroundJob(boost::bind(&MotionPlanningFrame::computeResetDbButtonClicked, this, response.toStdString()), "reset database");
+  planning_display_->addBackgroundJob(boost::bind(&MotionPlanningFrame::computeResetDbButtonClicked, this, response.toStdString()));
 }
 
 void MotionPlanningFrame::computeDatabaseConnectButtonClicked()
@@ -149,7 +148,6 @@ void MotionPlanningFrame::computeDatabaseConnectButtonClickedHelper(int mode)
     ui_->save_scene_button->setEnabled(false);
     ui_->delete_query_button->setEnabled(false);
     ui_->delete_scene_button->setEnabled(false);
-    populateConstraintsList(std::vector<std::string>());
   }
   else
     if (mode == 2)
@@ -157,7 +155,6 @@ void MotionPlanningFrame::computeDatabaseConnectButtonClickedHelper(int mode)
       ui_->database_connect_button->setUpdatesEnabled(false);
       ui_->database_connect_button->setText(QString::fromStdString("Connecting ..."));
       ui_->database_connect_button->setUpdatesEnabled(true);
-      populateConstraintsList(std::vector<std::string>());
     }
     else
       if (mode == 3)
@@ -178,11 +175,6 @@ void MotionPlanningFrame::computeDatabaseConnectButtonClickedHelper(int mode)
           ui_->save_scene_button->setEnabled(true);
           ui_->reset_db_button->show();
           populatePlanningSceneTreeView();
-          if (move_group_)
-          {
-            move_group_->setConstraintsDatabase(ui_->database_host->text().toStdString(), ui_->database_port->value());
-            planning_display_->addBackgroundJob(boost::bind(&MotionPlanningFrame::populateConstraintsList, this), "populateConstraintsList");
-          }
         }
 }
 

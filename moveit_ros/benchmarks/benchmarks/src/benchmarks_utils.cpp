@@ -37,6 +37,7 @@
 #include <moveit/benchmarks/benchmarks_utils.h>
 #include <pluginlib/class_loader.h>
 #include <moveit/planning_interface/planning_interface.h>
+#include <ros/console.h>
 #include <unistd.h>
 
 namespace moveit_benchmarks
@@ -47,14 +48,14 @@ namespace moveit_benchmarks
 std::vector<std::string> benchmarkGetAvailablePluginNames()
 {
   // load the planning plugins
-  boost::scoped_ptr<pluginlib::ClassLoader<planning_interface::PlannerManager> > planner_plugin_loader;
+  boost::scoped_ptr<pluginlib::ClassLoader<planning_interface::Planner> > planner_plugin_loader;
   try
   {
-    planner_plugin_loader.reset(new pluginlib::ClassLoader<planning_interface::PlannerManager>("moveit_core", "planning_interface::PlannerManager"));
+    planner_plugin_loader.reset(new pluginlib::ClassLoader<planning_interface::Planner>("moveit_core", "planning_interface::Planner"));
   }
   catch(pluginlib::PluginlibException& ex)
   {
-    std::cerr << "Exception while creating planning plugin loader " << ex.what() << std::endl;
+    ROS_FATAL_STREAM("Exception while creating planning plugin loader " << ex.what());
   }
 
   if (planner_plugin_loader)

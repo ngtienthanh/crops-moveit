@@ -56,14 +56,14 @@ void robot_state::RobotState::buildState()
 {
   const std::vector<const robot_model::JointModel*>& joint_model_vector = kinematic_model_->getJointModels();
   joint_state_vector_.resize(joint_model_vector.size());
-
+  
   // create joint states
   for (std::size_t i = 0; i < joint_model_vector.size() ; ++i)
   {
     joint_state_vector_[i] = new JointState(joint_model_vector[i]);
     joint_state_map_[joint_state_vector_[i]->getName()] = joint_state_vector_[i];
   }
-
+  
   // create link states
   const std::vector<const robot_model::LinkModel*>& link_model_vector = kinematic_model_->getLinkModels();
   link_state_vector_.resize(link_model_vector.size());
@@ -72,7 +72,7 @@ void robot_state::RobotState::buildState()
     link_state_vector_[i] = new LinkState(this, link_model_vector[i]);
     link_state_map_[link_state_vector_[i]->getName()] = link_state_vector_[i];
   }
-
+  
   // now we need to figure out who the link parents are
   for (std::size_t i = 0; i < link_state_vector_.size(); ++i)
   {
@@ -81,7 +81,7 @@ void robot_state::RobotState::buildState()
     if (parent_joint_model->getParentLinkModel() != NULL)
       link_state_vector_[i]->parent_link_state_ = link_state_map_[parent_joint_model->getParentLinkModel()->getName()];
   }
-
+  
   // compute mimic joint state pointers
   for (std::size_t i = 0; i < joint_state_vector_.size(); ++i)
   {
@@ -89,7 +89,7 @@ void robot_state::RobotState::buildState()
     for (std::size_t j = 0 ; j < mr.size() ; ++j)
       joint_state_vector_[i]->mimic_requests_.push_back(joint_state_map_[mr[j]->getName()]);
   }
-
+  
   // now make joint_state_groups
   const std::map<std::string, robot_model::JointModelGroup*>& joint_model_group_map = kinematic_model_->getJointModelGroupMap();
   for (std::map<std::string, robot_model::JointModelGroup*>::const_iterator it = joint_model_group_map.begin() ;
@@ -121,15 +121,14 @@ void robot_state::RobotState::copyFrom(const RobotState &ks)
 
   kinematic_model_ = ks.getRobotModel();
   root_transform_ = ks.root_transform_;
-
+  
   // construct state
   buildState();
 
   // copy attached bodies
-  clearAttachedBodies();
+  clearAttachedBodies(); 
   for (std::map<std::string, AttachedBody*>::const_iterator it = ks.attached_body_map_.begin() ; it != ks.attached_body_map_.end() ; ++it)
-    attachBody(it->second->getName(), it->second->getShapes(), it->second->getFixedTransforms(),
-               it->second->getTouchLinks(), it->second->getAttachedLinkName(), it->second->getDetachPosture());
+    attachBody(it->second->id_, it->second->shapes_, it->second->attach_trans_, it->second->touch_links_, it->second->getAttachedLinkName());
 
   std::map<std::string, double> current_joint_values;
   ks.getStateValues(current_joint_values);
@@ -138,7 +137,7 @@ void robot_state::RobotState::copyFrom(const RobotState &ks)
 
 robot_state::RobotState::~RobotState()
 {
-  clearAttachedBodies(); // we call this instead of just deleting so we get the attached body callbacks
+  clearAttachedBodies(); // we call this instead of just deleting so we get the attached body callbacks 
   for (std::size_t i = 0; i < joint_state_vector_.size(); i++)
     delete joint_state_vector_[i];
   for (std::size_t i = 0; i < link_state_vector_.size(); i++)
@@ -152,11 +151,11 @@ bool robot_state::RobotState::setStateValues(const std::vector<double>& joint_st
 {
   if (joint_state_values.size() != getVariableCount())
   {
-    logError("RobotState: Incorrect variable count specified for array of joint values. Expected %u but got %u values",
+    logError("Incorrect variable count specified for array of joint values. Expected %u but got %u values",
              getVariableCount(), (int)joint_state_values.size());
     return false;
   }
-
+  
   unsigned int value_counter = 0;
   for(std::size_t i = 0; i < joint_state_vector_.size(); i++)
   {
@@ -238,7 +237,7 @@ void robot_state::RobotState::getStateValues(sensor_msgs::JointState& js) const
   getStateValues(joint_state_values);
   js.name.resize(joint_state_values.size());
   js.position.resize(joint_state_values.size());
-
+  
   unsigned int i = 0;
   for(std::map<std::string, double>::iterator it = joint_state_values.begin() ; it != joint_state_values.end() ; ++it, ++i)
   {
@@ -253,16 +252,22 @@ void robot_state::RobotState::updateLinkTransforms()
     link_state_vector_[i]->computeTransform();
 }
 
-bool robot_state::RobotState::updateStateWithLinkAt(const std::string& link_name, const Eigen::Affine3d& transform, bool backward)
+bool robot_state::RobotState::updateStateWithLinkAt(const std::string& link_name, const Eigen::Affine3d& transform)
 {
   if (!hasLinkState(link_name))
     return false;
-
-  if (backward)
-    link_state_map_[link_name]->computeTransformBackward(transform);
-  else
-    link_state_map_[link_name]->computeTransformForward(transform);
-
+  
+  link_state_map_[link_name]->updateGivenGlobalLinkTransform(transform);
+  std::vector<const robot_model::LinkModel*> child_link_models;
+  kinematic_model_->getChildLinkModels(kinematic_model_->getLinkModel(link_name), child_link_models);
+  // the zeroith link will be the link itself, which shouldn't be updated, so we start at 1
+  for(unsigned int i = 1 ; i < child_link_models.size() ; ++i)
+    link_state_map_[child_link_models[i]->getName()]->computeTransform();
+  
+  const robot_model::LinkModel::AssociatedFixedTransformMap& assoc = kinematic_model_->getLinkModel(link_name)->getAssociatedFixedTransforms();
+  for (robot_model::LinkModel::AssociatedFixedTransformMap::const_iterator it = assoc.begin() ; it != assoc.end() ; ++it)
+    link_state_map_[it->first->getName()]->updateGivenGlobalLinkTransform(transform * it->second);
+  
   return true;
 }
 
@@ -396,7 +401,7 @@ robot_state::LinkState* robot_state::RobotState::getLinkState(const std::string 
   if (it == link_state_map_.end())
   {
     logError("Link state '%s' not found", name.c_str());
-    return NULL;
+    return NULL; 
   }
   else
     return it->second;
@@ -436,13 +441,12 @@ void robot_state::RobotState::attachBody(const std::string &id,
                                          const std::vector<shapes::ShapeConstPtr> &shapes,
                                          const EigenSTL::vector_Affine3d &attach_trans,
                                          const std::set<std::string> &touch_links,
-                                         const std::string &link,
-                                         const sensor_msgs::JointState &detach_posture)
+                                         const std::string &link)
 {
   LinkState *ls = getLinkState(link);
   if (ls)
   {
-    AttachedBody *ab = new AttachedBody(ls->getLinkModel(), id, shapes, attach_trans, touch_links, detach_posture);
+    AttachedBody *ab = new AttachedBody(ls->getLinkModel(), id, shapes, attach_trans, touch_links);
     ls->attached_body_map_[id] = ab;
     attached_body_map_[id] = ab;
     ab->computeTransform(ls->getGlobalLinkTransform());
@@ -455,11 +459,10 @@ void robot_state::RobotState::attachBody(const std::string &id,
                                          const std::vector<shapes::ShapeConstPtr> &shapes,
                                          const EigenSTL::vector_Affine3d &attach_trans,
                                          const std::vector<std::string> &touch_links,
-                                         const std::string &link,
-                                         const sensor_msgs::JointState &detach_posture)
+                                         const std::string &link)
 {
   std::set<std::string> touch_links_set(touch_links.begin(), touch_links.end());
-  attachBody(id, shapes, attach_trans, touch_links_set, link, detach_posture);
+  attachBody(id, shapes, attach_trans, touch_links_set, link);
 }
 
 void robot_state::RobotState::getAttachedBodies(std::vector<const AttachedBody*> &attached_bodies) const
@@ -521,7 +524,7 @@ bool robot_state::RobotState::clearAttachedBody(const std::string &id)
     return false;
 }
 
-namespace
+namespace 
 {
 static inline void updateAABB(const Eigen::Affine3d &t, const Eigen::Vector3d &e, std::vector<double> &aabb)
 {
@@ -601,8 +604,6 @@ const Eigen::Affine3d& robot_state::RobotState::getFrameTransform(const std::str
   if (!id.empty() && id[0] == '/')
     return getFrameTransform(id.substr(1));
   static const Eigen::Affine3d identity_transform = Eigen::Affine3d::Identity();
-  if (id == kinematic_model_->getModelFrame())
-    return identity_transform;
   std::map<std::string, LinkState*>::const_iterator it = link_state_map_.find(id);
   if (it != link_state_map_.end())
     return it->second->getGlobalLinkTransform();
@@ -625,7 +626,7 @@ const Eigen::Affine3d& robot_state::RobotState::getFrameTransform(const std::str
 }
 
 bool robot_state::RobotState::knowsFrameTransform(const std::string &id) const
-{
+{   
   if (!id.empty() && id[0] == '/')
     return knowsFrameTransform(id.substr(1));
   if (hasLinkState(id))
@@ -640,7 +641,7 @@ void robot_state::RobotState::getRobotMarkers(visualization_msgs::MarkerArray& a
                                               const std::vector<std::string> &link_names,
                                               const std_msgs::ColorRGBA& color,
                                               const std::string& ns,
-                                              const ros::Duration& dur,
+                                              const ros::Duration& dur, 
                                               bool include_attached) const
 {
   std::size_t cur_num = arr.markers.size();
@@ -700,9 +701,9 @@ void robot_state::RobotState::getRobotMarkers(visualization_msgs::MarkerArray& a
     {
       mark.type = mark.MESH_RESOURCE;
       mark.mesh_use_embedded_materials = false;
-      mark.mesh_resource = mesh_resource;
-      const Eigen::Vector3d &mesh_scale = ls->getLinkModel()->getVisualMeshScale();
-
+      mark.mesh_resource = mesh_resource; 
+      const Eigen::Vector3d &mesh_scale = ls->getLinkModel()->getVisualMeshScale(); 
+     
       mark.scale.x = mesh_scale[0];
       mark.scale.y = mesh_scale[1];
       mark.scale.z = mesh_scale[2];
@@ -724,59 +725,6 @@ void robot_state::RobotState::printStateInfo(std::ostream &out) const
   getStateValues(val);
   for (std::map<std::string, double>::iterator it = val.begin() ; it != val.end() ; ++it)
     out << it->first << " = " << it->second << std::endl;
-}
-
-void robot_state::RobotState::getPoseString(std::stringstream& ss, const Eigen::Affine3d& pose, const std::string& pfx)
-{
-  ss.precision(3);
-  for (int y=0;y<4;y++)
-  {
-    ss << pfx;
-    for (int x=0;x<4;x++)
-    {
-      ss << std::setw(8) << pose(y,x) << " ";
-    }
-    ss << std::endl;
-  }
-}
-
-void robot_state::RobotState::getStateTreeJointString(std::stringstream& ss, const robot_state::JointState* js, const std::string& pfx0, bool last) const
-{
-  std::string pfx = pfx0 + "+--";
-
-  const robot_model::JointModel* jm = js->getJointModel();
-  ss << pfx << "Joint: " << jm->getName() << std::endl;
-
-  pfx = pfx0 + (last ? "   " : "|  ");
-
-  for (int i=0; i<js->getVariableCount(); i++)
-  {
-    ss.precision(3);
-    ss << pfx << js->getVariableNames()[i] << std::setw(8) << js->getVariableValues()[i] << std::endl;
-  }
-
-  const robot_model::LinkModel* lm = jm->getChildLinkModel();
-  const LinkState* ls = getLinkState(jm->getChildLinkModel()->getName());
-
-  ss << pfx << "Link: " << lm->getName() << std::endl;
-  getPoseString(ss, lm->getJointOriginTransform(), pfx + "joint_origin:");
-  getPoseString(ss, js->getVariableTransform(), pfx + "joint_variable:");
-  getPoseString(ss, ls->getGlobalLinkTransform(), pfx + "link_global:");
-
-  for (std::vector<robot_model::JointModel*>::const_iterator it = lm->getChildJointModels().begin() ; it != lm->getChildJointModels().end() ; ++it)
-  {
-    const robot_model::JointModel* cjm = *it;
-    getStateTreeJointString(ss, getJointState(cjm->getName()), pfx, it+1 == lm->getChildJointModels().end());
-  }
-}
-
-std::string robot_state::RobotState::getStateTreeString(const std::string& prefix) const
-{
-  std::stringstream ss;
-  ss << "ROBOT: " << getRobotModel()->getName() << std::endl;
-  getPoseString(ss, getRootTransform(), "   Root: ");
-  getStateTreeJointString(ss, getJointState(getRobotModel()->getRoot()->getName()), "   ", true);
-  return ss.str();
 }
 
 void robot_state::RobotState::printTransform(const std::string &st, const Eigen::Affine3d &t, std::ostream &out) const

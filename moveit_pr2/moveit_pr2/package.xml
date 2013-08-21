@@ -1,6 +1,6 @@
 <package>
   <name>moveit_pr2</name>
-  <version>0.4.3</version>
+  <version>0.3.9</version>
   <description>All PR2-specific packages for MoveIt</description>
   <author email="isucan@willowgarage.com">Ioan Sucan</author>
   <author email="sachinc@willowgarage.com">Sachin Chitta</author>
@@ -10,8 +10,6 @@
   <license>BSD</license>
 
   <url type="website">http://moveit.ros.org</url>
-
-  <buildtool_depend>catkin</buildtool_depend>
 
   <run_depend>pr2_moveit_plugins</run_depend>
   <run_depend>pr2_moveit_config</run_depend>

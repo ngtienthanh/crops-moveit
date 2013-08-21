@@ -290,3 +290,4 @@ void collision_detection::contactToMsg(const Contact& contact, moveit_msgs::Cont
     else
       msg.body_type_2 = moveit_msgs::ContactInformation::WORLD_OBJECT;
 }
+

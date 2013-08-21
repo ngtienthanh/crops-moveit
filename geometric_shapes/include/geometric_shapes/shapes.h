@@ -62,27 +62,33 @@ enum ShapeType { UNKNOWN_SHAPE, SPHERE, CYLINDER, CONE, BOX, PLANE, MESH, OCTREE
 class Shape
 {
 public:
-  Shape();
-  virtual ~Shape();
-
+  Shape()
+  {
+    type = UNKNOWN_SHAPE;
+  }
+  
+  virtual ~Shape()
+  {
+  }
+  
   /** \brief Create a copy of this shape */
   virtual Shape* clone() const = 0;
-
+  
   /** \brief Print information about this shape */
   virtual void print(std::ostream &out = std::cout) const;
-
+    
   /** \brief Scale this shape by a factor */
   void scale(double scale);
-
+  
   /** \brief Add padding to this shape */
   void padd(double padding);
-
+  
   /** \brief Scale and padd this shape */
   virtual void scaleAndPadd(double scale, double padd) = 0;
-
+  
   /** \brief Return a flag indicating whether this shape can be scaled and/or padded */
   virtual bool isFixed() const;
-
+  
   /** \brief The type of the shape */
   ShapeType type;
 };
@@ -91,39 +97,51 @@ public:
 class Sphere : public Shape
 {
 public:
-  Sphere();
-
-  /** \brief The radius of the shpere */
-  Sphere(double r);
-
-  /** \brief The type of the shape, as a string */
+  Sphere() : Shape()
+  {
+    type   = SPHERE;
+    radius = 0.0;
+  }
+  
+  Sphere(double r) : Shape()
+  {
+    type   = SPHERE;
+    radius = r;
+  }
+  
   static const std::string STRING_NAME;
-
+  
   virtual void scaleAndPadd(double scale, double padd);
   virtual Shape* clone() const;
   virtual void print(std::ostream &out = std::cout) const;
-
+  
   /** \brief The radius of the sphere */
   double radius;
 };
 
-/** \brief Definition of a cylinder
- * Length is along z axis.  Origin is at center of mass. */
+/** \brief Definition of a cylinder */
 class Cylinder : public Shape
 {
 public:
-  Cylinder();
+  Cylinder() : Shape()
+  {
+    type   = CYLINDER;
+    length = radius = 0.0;
+  }
+  
+  Cylinder(double r, double l) : Shape()
+  {
+    type   = CYLINDER;
+    length = l;
+    radius = r;
+  }
 
-  /** \brief The radius and the length of the cylinder */
-  Cylinder(double r, double l);
-
-  /** \brief The type of the shape, as a string */
   static const std::string STRING_NAME;
 
   virtual void scaleAndPadd(double scale, double padd);
   virtual Shape* clone() const;
   virtual void print(std::ostream &out = std::cout) const;
-
+  
   /** \brief The length of the cylinder */
   double length;
 
@@ -131,22 +149,29 @@ public:
   double radius;
 };
 
-/** \brief Definition of a cone
- * Tip is on positive z axis.  Center of base is on negative z axis.  Origin is
- * halway between tip and center of base. */
+/** \brief Definition of a cone */
 class Cone : public Shape
 {
 public:
-  Cone();
-  Cone(double r, double l);
+  Cone() : Shape()
+  {
+    type   = CONE;
+    length = radius = 0.0;
+  }
+  
+  Cone(double r, double l) : Shape()
+  {
+    type   = CONE;
+    length = l;
+    radius = r;
+  }
 
-  /** \brief The type of the shape, as a string */
   static const std::string STRING_NAME;
 
   virtual void scaleAndPadd(double scale, double padd);
   virtual Shape* clone() const;
   virtual void print(std::ostream &out = std::cout) const;
-
+  
   /** \brief The length (height) of the cone */
   double length;
 
@@ -154,86 +179,113 @@ public:
   double radius;
 };
 
-/** \brief Definition of a box
- * Aligned with the XYZ axes. */
+/** \brief Definition of a box */
 class Box : public Shape
 {
 public:
-  Box();
-  Box(double x, double y, double z);
+  Box() : Shape()
+  {
+    type = BOX;
+    size[0] = size[1] = size[2] = 0.0;
+  }
+  
+  Box(double x, double y, double z) : Shape()
+  {
+    type = BOX;
+    size[0] = x;
+    size[1] = y;
+    size[2] = z;
+  }
 
-  /** \brief The type of the shape, as a string */
   static const std::string STRING_NAME;
 
   virtual void scaleAndPadd(double scale, double padd);
   virtual Shape* clone() const;
   virtual void print(std::ostream &out = std::cout) const;
-
+  
   /** \brief x, y, z dimensions of the box (axis-aligned) */
   double size[3];
 };
 
-/** \brief Definition of a triangle mesh
- * By convention the "center" of the shape is at the origin.  For a mesh this
- * implies that the AABB of the mesh is centered at the origin.  Some methods
- * may not work with arbitrary meshes whose AABB is not centered at the origin.
- * */
+/** \brief Definition of a triangle mesh */
 class Mesh : public Shape
 {
 public:
+  Mesh() : Shape()
+  {
+    type = MESH;
+    vertex_count = 0;
+    vertices = NULL;
+    triangle_count = 0;
+    triangles = NULL;
+    normals = NULL;
+  }
+  
+  Mesh(unsigned int v_count, unsigned int t_count) : Shape()
+  {
+    type = MESH;
+    vertex_count = v_count;
+    vertices = new double[v_count * 3];
+    triangle_count = t_count;
+    triangles = new unsigned int[t_count * 3];
+    normals = new double[t_count * 3];
+  }
+  
+  virtual ~Mesh()
+  {
+    if (vertices)
+      delete[] vertices;
+    if (triangles)
+      delete[] triangles;
+    if (normals)
+      delete[] normals;
+  }
 
-  Mesh();
-  Mesh(unsigned int v_count, unsigned int t_count);
-  virtual ~Mesh();
-
-  /** \brief The type of the shape, as a string */
   static const std::string STRING_NAME;
 
   virtual void scaleAndPadd(double scale, double padd);
   virtual Shape* clone() const;
   virtual void print(std::ostream &out = std::cout) const;
-
+  
   /** \brief The normals to each triangle can be computed from the vertices using cross products. This function performs this computation and allocates memory for normals if needed */
-  void computeTriangleNormals();
-
-  /** \brief The normals to each vertex, averaged from the triangle normals. computeTriangleNormals() is automatically called if needed. */
-  void computeVertexNormals();
-
-  /** \brief Merge vertices that are very close to each other, up to a threshold*/
-  void mergeVertices(double threshold);
-
+  void computeNormals();
+  
   /** \brief The number of available vertices */
   unsigned int  vertex_count;
-
+  
   /** \brief The position for each vertex vertex k has values at
    * index (3k, 3k+1, 3k+2) = (x,y,z) */
   double       *vertices;
-
+  
   /** \brief The number of triangles formed with the vertices */
   unsigned int  triangle_count;
-
+  
   /** \brief The vertex indices for each triangle
    * triangle k has vertices at index (3k, 3k+1, 3k+2) = (v1, v2, v3) */
   unsigned int *triangles;
-
+  
   /** \brief The normal to each triangle; unit vector represented
-      as (x,y,z); If missing from the mesh, these vectors can be computed using computeTriangleNormals() */
-  double       *triangle_normals;
-
-  /** \brief The normal to each vertex; unit vector represented
-      as (x,y,z); If missing from the mesh, these vectors can be computed using computeVertexNormals()  */
-  double       *vertex_normals;
+      as (x,y,z); If missing from the mesh, these vectors are computed  */
+  double       *normals;
 };
 
 /** \brief Definition of a plane with equation ax + by + cz + d = 0 */
 class Plane : public Shape
 {
 public:
+  
+  Plane() : Shape()
+  {
+    type = PLANE;
+    a = b = c = d = 0.0;
+  }
+  
+  Plane(double pa, double pb, double pc, double pd) : Shape()
+  {
+    type = PLANE;
+    a = pa; b = pb; c = pc; d = pd;
+  }
 
-  Plane();
-  Plane(double pa, double pb, double pc, double pd);
-
-  /** \brief The type of the shape, as a string */
   static const std::string STRING_NAME;
 
   virtual Shape* clone() const;
@@ -249,17 +301,23 @@ public:
 class OcTree : public Shape
 {
 public:
-  OcTree();
-  OcTree(const boost::shared_ptr<const octomap::OcTree> &t);
+  OcTree() : Shape()
+  {
+    type = OCTREE;
+  }
+  
+  OcTree(const boost::shared_ptr<const octomap::OcTree> &t) : octree(t)
+  {
+    type = OCTREE;
+  }
 
-  /** \brief The type of the shape, as a string */
   static const std::string STRING_NAME;
 
   virtual Shape* clone() const;
   virtual void print(std::ostream &out = std::cout) const;
   virtual void scaleAndPadd(double scale, double padd);
   virtual bool isFixed() const;
-
+  
   boost::shared_ptr<const octomap::OcTree> octree;
 };
 

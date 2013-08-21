@@ -75,7 +75,6 @@ bool robot_state::JointState::setVariableValue(const std::string &variable, doub
   if (it != getVariableIndexMap().end())
   {
     joint_state_values_[it->second] = value;
-    joint_model_->updateTransform(joint_state_values_, variable_transform_);
     updateMimicJoints();
     return true;
   }
@@ -122,7 +121,7 @@ void robot_state::JointState::setVariableValues(const std::map<std::string, doub
       joint_state_values_[it->second] = it2->second;
     }
   }
-
+  
   if (has_any)
   {
     joint_model_->updateTransform(joint_state_values_, variable_transform_);
@@ -175,14 +174,14 @@ void robot_state::JointState::updateMimicJoints()
   {
     std::vector<double> mim_val(joint_state_values_.size());
     for (std::size_t j = 0 ; j < mim_val.size() ; ++j)
-      mim_val[j] = joint_state_values_[j] * mimic_requests_[i]->getJointModel()->getMimicFactor() + mimic_requests_[i]->getJointModel()->getMimicOffset();
+      mim_val[j] = joint_state_values_[j] * joint_model_->getMimicFactor() + joint_model_->getMimicOffset();
     mimic_requests_[i]->setVariableValues(&mim_val[0]);
   }
 }
 
 void robot_state::JointState::enforceBounds()
 {
-  joint_model_->enforceBounds(joint_state_values_);
+  joint_model_->enforceBounds(joint_state_values_);  
   joint_model_->updateTransform(joint_state_values_, variable_transform_);
   updateMimicJoints();
 }

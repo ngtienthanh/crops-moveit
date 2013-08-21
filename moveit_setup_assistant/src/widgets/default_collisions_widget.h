@@ -46,7 +46,6 @@
 #include <QGroupBox>
 #include <QProgressBar>
 #include <QCheckBox>
-#include <QSpinBox>
 #include <boost/thread.hpp>
 #include <moveit/setup_assistant/tools/compute_default_collisions.h>
 #include <moveit/setup_assistant/tools/moveit_config_data.h>
@@ -74,12 +73,12 @@ public:
    */
   DefaultCollisionsWidget( QWidget *parent, moveit_setup_assistant::MoveItConfigDataPtr config_data );
 
-  /**
+  /** 
    * \brief Output Link Pairs to SRDF Format
    */
   void linkPairsToSRDF();
 
-  /**
+  /** 
    * \brief Load Link Pairs from SRDF Format
    */
   void linkPairsFromSRDF();
@@ -107,7 +106,7 @@ private Q_SLOTS:
    * \brief Displays data in the link_pairs data structure into a QtTableWidget
    */
   void loadCollisionTable();
-
+ 
   /**
    * \brief Changes the table to show or hide collisions that are not disabled (that have collision checking enabled
    */
@@ -124,7 +123,7 @@ private Q_SLOTS:
    */
   void previewClicked( int row, int column );
 
-  /**
+  /** 
    * \brief Called when setup assistant navigation switches to this screen
    */
   void focusGiven();
@@ -145,8 +144,6 @@ private:
   QLabel *progress_label_;
   QCheckBox *collision_checkbox_;
   QGroupBox *controls_box_bottom_;
-  QLabel *fraction_label_;
-  QSpinBox *fraction_spinbox_;
   QTimer *update_timer_;
 
   // ******************************************************************************************
@@ -154,7 +151,7 @@ private:
   // ******************************************************************************************
 
   /// main storage of link pair data
-  moveit_setup_assistant::LinkPairMap link_pairs_;
+  moveit_setup_assistant::LinkPairMap link_pairs_; 
 
   /// Contains all the configuration data for the setup assistant
   moveit_setup_assistant::MoveItConfigDataPtr config_data_;
@@ -165,7 +162,7 @@ private:
 
   /**
    * \brief The thread that is called to allow the GUI to update. Calls an external function to do calcs
-   * \param collision_progress A shared pointer between 3 threads to allow progress bar to update. See declaration
+   * \param collision_progress A shared pointer between 3 threads to allow progress bar to update. See declaration 
    * location for more details and warning.
    */
   void generateCollisionTableThread( unsigned int *collision_progress );
@@ -173,7 +170,7 @@ private:
   /**
    * \brief Helper function to disable parts of GUI during computation
    * \param disable A command
-   */
+   */                                
   void disableControls(bool disable);
 
 };

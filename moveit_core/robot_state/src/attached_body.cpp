@@ -37,17 +37,15 @@
 #include <moveit/robot_state/attached_body.h>
 
 robot_state::AttachedBody::AttachedBody(const robot_model::LinkModel *parent_link_model,
-                                        const std::string &id,
+                                        const std::string &id, 
                                         const std::vector<shapes::ShapeConstPtr> &shapes,
                                         const EigenSTL::vector_Affine3d &attach_trans,
-                                        const std::set<std::string> &touch_links,
-                                        const sensor_msgs::JointState &detach_posture) :
+                                        const std::set<std::string> &touch_links) :
   parent_link_model_(parent_link_model),
   id_(id),
   shapes_(shapes),
   attach_trans_(attach_trans),
-  touch_links_(touch_links),
-  detach_posture_(detach_posture)
+  touch_links_(touch_links)
 {
   global_collision_body_transforms_.resize(attach_trans.size());
   for(std::size_t i = 0 ; i < global_collision_body_transforms_.size() ; ++i)
@@ -81,7 +79,7 @@ void robot_state::AttachedBody::setPadding(double padding)
   {
     // if this shape is only owned here (and because this is a non-const function), we can safely const-cast:
     if (shapes_[i].unique())
-      const_cast<shapes::Shape*>(shapes_[i].get())->padd(padding);
+      const_cast<shapes::Shape*>(shapes_[i].get())->padd(padding); 
     else
     {
       // if the shape is owned elsewhere, we make a copy:

@@ -37,8 +37,7 @@
 #ifndef MOVEIT_ROBOT_STATE_CONVERSIONS_
 #define MOVEIT_ROBOT_STATE_CONVERSIONS_
 
-#include <moveit/robot_state/robot_state.h>
-#include <moveit/transforms/transforms.h>
+#include <moveit/robot_state/transforms.h>
 #include <moveit_msgs/RobotState.h>
 #include <moveit_msgs/RobotTrajectory.h>
 

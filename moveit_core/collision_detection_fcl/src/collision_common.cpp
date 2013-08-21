@@ -123,7 +123,7 @@ bool collisionCallback(fcl::CollisionObject* o1, fcl::CollisionObject* o2, void 
     if (cd1->ptr.ab->getAttachedLink() == cd2->ptr.ab->getAttachedLink())
       always_allow_collision = true;
   }
-
+  
   // if collisions are always allowed, we are done
   if (always_allow_collision)
     return false;
@@ -737,8 +737,8 @@ void collision_detection::FCLObject::registerTo(fcl::BroadPhaseCollisionManager 
   std::vector<fcl::CollisionObject*> collision_objects(collision_objects_.size());
   for(std::size_t i = 0; i < collision_objects_.size(); ++i)
     collision_objects[i] = collision_objects_[i].get();
-  if (collision_objects.size() > 0)
-    manager->registerObjects(collision_objects);
+
+  manager->registerObjects(collision_objects);
 }
 
 void collision_detection::FCLObject::unregisterFrom(fcl::BroadPhaseCollisionManager *manager)

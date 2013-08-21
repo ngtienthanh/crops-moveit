@@ -51,23 +51,6 @@
 namespace moveit_setup_assistant
 {
 
-// Struct for storing all the file operations
-struct GenerateFile
-{
-  GenerateFile() :
-    generate_(true)
-  {}
-  std::string file_name_;
-  std::string rel_path_;
-  std::string description_;
-  bool generate_;
-  boost::function<bool(std::string)> gen_func_;
-};
-
-// Typedef for storing template string replacement pairs
-typedef std::vector< std::pair<std::string, std::string> > StringPairVector;
-
-// Class
 class ConfigurationFilesWidget : public SetupScreenWidget
 {
   Q_OBJECT
@@ -79,8 +62,6 @@ class ConfigurationFilesWidget : public SetupScreenWidget
 
   ConfigurationFilesWidget( QWidget *parent, moveit_setup_assistant::MoveItConfigDataPtr config_data );
 
-  /// Recieved when this widget is chosen from the navigation menu
-  virtual void focusGiven();
 
   // ******************************************************************************************
   // Qt Components
@@ -99,20 +80,14 @@ private Q_SLOTS:
   // Slot Event Functions
   // ******************************************************************************************
 
-  /// Save package click event
+  /// Save package using default path
   void savePackage();
-
-  /// Generate the package
-  bool generatePackage();
 
   /// Quit the program because we are done
   void exitSetupAssistant();
 
   /// Display the selected action in the desc box
   void changeActionDesc(int id);
-
-  /// Disable or enable item in gen_files_ array
-  void changeCheckedState(QListWidgetItem* item);
 
 private:
 
@@ -124,43 +99,21 @@ private:
   /// Contains all the configuration data for the setup assistant
   moveit_setup_assistant::MoveItConfigDataPtr config_data_;
 
-  /// Name of the new package that is being (or going) to be generated, based on user specified save path
-  std::string new_package_name_;
-
   /// Track progress
-  unsigned int action_num_;
+  unsigned int action_num;
 
-  /// Has the package been generated yet this program execution? Used for popping up exit warning
-  bool has_generated_pkg_;
-
-  /// Populate the 'Files to be Generated' list just once
-  bool first_focusGiven_;
-
-  /// Vector of all files to be generated
-  std::vector<GenerateFile> gen_files_;
-
-  /// Vector of all strings to search for in templates, and their replacements
-  StringPairVector template_strings_;
+  /// Total actions - update this whenever a new call to displayAction() is added
+  static const unsigned int action_num_total = 24; // note: this is worse case number of actions
 
   // ******************************************************************************************
   // Private Functions
   // ******************************************************************************************
 
-  /// Populate the 'Files to be generated' list
-  bool loadGenFiles();
-
-  /// Check the list of files to be generated for modification
-  /// Returns true if files were detected as modified
-  bool checkGenFiles();
-
-  /// Show the list of files to be generated
-  void showGenFiles();
-
   /// Verify with user if certain screens have not been completed
   bool checkDependencies();
 
   /// A function for showing progress and user feedback about what happened
-  void updateProgress();
+  void displayAction( const QString title, const QString desc, bool skipped = false );
 
   /// Get the last folder name in a directory path
   const std::string getPackageName( std::string package_path );
@@ -168,37 +121,18 @@ private:
   /// Check that no group is empty (without links/joints/etc)
   bool noGroupsEmpty();
 
-  /**
-   * \brief Load the strings that will be replaced in all templates
-   * \return void
-   */
-  void loadTemplateStrings();
-
-  /**
-   * \brief Insert a string pair into the template_strings_ datastructure
-   * \param key string to search in template
-   * \param value string to replace with
-   * \return void
-   */
-  bool addTemplateString( const std::string& key, const std::string& value );
-
-  /**
+  /** 
    * Copy a template from location <template_path> to location <output_path> and replace package name
-   *
+   * 
    * @param template_path path to template file
    * @param output_path desired path to copy to
    * @param new_package_name name of the new package being created, to replace key word in template
-   *
+   * 
    * @return bool if the template was copied correctly
    */
-  bool copyTemplate(const std::string& template_path, const std::string& output_path );
+  bool copyTemplate( const std::string& template_path, const std::string& output_path, 
+                     const std::string& new_package_name );
 
-  /**
-   * \brief Create a folder
-   * \param output_path name of folder relative to package
-   * \return bool if success
-   */
-  bool createFolder(const std::string& output_path);
 
 };
 

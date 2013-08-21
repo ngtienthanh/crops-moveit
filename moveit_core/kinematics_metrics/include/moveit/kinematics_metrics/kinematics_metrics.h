@@ -51,14 +51,14 @@ namespace kinematics_metrics
  */
 class KinematicsMetrics
 {
-public:
-
+public:  
+    
   /** \brief Construct a KinematicsMetricss from a RobotModel */
-  KinematicsMetrics(const robot_model::RobotModelConstPtr &kinematic_model) :
-    kinematic_model_(kinematic_model), penalty_multiplier_(0.0)
+  KinematicsMetrics(const robot_model::RobotModelConstPtr &kinematic_model) : 
+    kinematic_model_(kinematic_model)
   {
   }
-
+  
   /**
    * @brief Get the manipulability for a given group at a given joint configuration
    * @param kinematic_state Complete kinematic state for the robot
@@ -66,10 +66,9 @@ public:
    * @param manipulability_index The computed manipulability = sqrt(det(JJ^T))
    * @return False if the group was not found
    */
-  bool getManipulabilityIndex(const robot_state::RobotState &kinematic_state,
+  bool getManipulabilityIndex(const robot_state::RobotState &kinematic_state, 
                               const std::string &group_name,
-                              double &manipulability_index,
-                              bool translation = false) const;
+                              double &manipulability_index) const;
 
   /**
    * @brief Get the manipulability for a given group at a given joint configuration
@@ -78,11 +77,10 @@ public:
    * @param manipulability_index The computed manipulability = sqrt(det(JJ^T))
    * @return False if the group was not found
    */
-  bool getManipulabilityIndex(const robot_state::RobotState &kinematic_state,
+  bool getManipulabilityIndex(const robot_state::RobotState &kinematic_state, 
                               const robot_model::JointModelGroup *joint_model_group,
-                              double &manipulability_index,
-                              bool translation = false) const;
-
+                              double &manipulability_index) const;
+    
   /**
    * @brief Get the (translation) manipulability ellipsoid for a given group at a given joint configuration
    * @param kinematic_state Complete kinematic state for the robot
@@ -108,10 +106,10 @@ public:
                                   const robot_model::JointModelGroup *joint_model_group,
                                   Eigen::MatrixXcd &eigen_values,
                                   Eigen::MatrixXcd &eigen_vectors) const;
-
+  
   /**
-   * @brief Get the manipulability = sigma_min/sigma_max
-   * where sigma_min and sigma_max are the smallest and largest singular values
+   * @brief Get the manipulability = sigma_min/sigma_max 
+   * where sigma_min and sigma_max are the smallest and largest singular values 
    * of the Jacobian matrix J
    * @param kinematic_state Complete kinematic state for the robot
    * @param group_name The group name (e.g. "arm")
@@ -120,12 +118,11 @@ public:
    */
   bool getManipulability(const robot_state::RobotState &kinematic_state,
                          const std::string &group_name,
-                         double &condition_number,
-                         bool translation = false) const;
+                         double &condition_number) const;
 
   /**
-   * @brief Get the manipulability = sigma_min/sigma_max
-   * where sigma_min and sigma_max are the smallest and largest singular values
+   * @brief Get the manipulability = sigma_min/sigma_max 
+   * where sigma_min and sigma_max are the smallest and largest singular values 
    * of the Jacobian matrix J
    * @param kinematic_state Complete kinematic state for the robot
    * @param joint_model_group A pointer to the desired joint model group
@@ -134,42 +131,15 @@ public:
    */
   bool getManipulability(const robot_state::RobotState &kinematic_state,
                          const robot_model::JointModelGroup *joint_model_group,
-                         double &condition_number,
-                         bool translation = false) const;
-
-  void setPenaltyMultiplier(double multiplier)
-  {
-    penalty_multiplier_ = fabs(multiplier);
-  }
-
-  const double& getPenaltyMultiplier() const
-  {
-    return penalty_multiplier_;
-  }
+                         double &condition_number) const;
 
 protected:
-
+  
   robot_model::RobotModelConstPtr kinematic_model_;
-
+    
   Eigen::MatrixXd getJacobian(const robot_state::RobotState &kinematic_state,
-                              const robot_model::JointModelGroup *joint_model_group) const;
-
-private:
-
-    /**
-   * @brief Defines a multiplier for the manipulabilty
-   * = 1 - exp ( -penalty_multipler_ * product_{i=1}{n} (distance_to_lower_limit * distance_to_higher_limit/(joint_range*joint_range)))
-   * where n is the number of joints in the group. Floating joints are ignored in this computation. Planar joints with finite bounds
-   * are considered.
-   * Set penalty_multiplier_ to 0 if you don't want this multiplier to have any effect on the manipulability measures.
-   * See "Workspace Geometric Characterization and Manipulability of Industrial Robots", Ming-June, Tsia, PhD Thesis,
-   * Ohio State University, 1986, for more details.
-   * @return multiplier that is multiplied with every manipulability measure computed here
-   */
-  double getJointLimitsPenalty(const robot_state::JointStateGroup* joint_state_group) const;
-
-  double penalty_multiplier_;
-
+                              const robot_model::JointModelGroup *joint_model_group) const;  
+  
 };
 
 typedef boost::shared_ptr<KinematicsMetrics> KinematicsMetricsPtr;

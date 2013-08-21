@@ -37,8 +37,6 @@
 #ifndef MOVEIT_COLLISION_DETECTION_COLLISION_WORLD_
 #define MOVEIT_COLLISION_DETECTION_COLLISION_WORLD_
 
-#include <boost/utility.hpp>
-
 #include <moveit/collision_detection/collision_matrix.h>
 #include <moveit/collision_detection/collision_robot.h>
 #include <moveit/collision_detection/world.h>
@@ -215,7 +213,7 @@ namespace collision_detection
     virtual double distanceWorld(const CollisionWorld &world,
                                  const AllowedCollisionMatrix &acm) const = 0;
     /** set the world to use.
-     * This can be expensive unless the new and old world are empty.
+     * This can be expensive unless the new and old world are empty. 
      * Passing NULL will result in a new empty world being created. */
     virtual void setWorld(const WorldPtr& world);
 

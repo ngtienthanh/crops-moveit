@@ -35,14 +35,10 @@
 /* Author: Ioan Sucan */
 
 #include <moveit/rdf_loader/rdf_loader.h>
-#include <moveit/profiler/profiler.h>
 #include <ros/ros.h>
 
 rdf_loader::RDFLoader::RDFLoader(const std::string &robot_description)
 {
-  moveit::Profiler::ScopedStart prof_start;
-  moveit::Profiler::ScopedBlock prof_block("RDFLoader(robot_description)");
-
   ros::WallTime start = ros::WallTime::now();
   ros::NodeHandle nh("~");
   if (nh.searchParam(robot_description, robot_description_))
@@ -77,50 +73,4 @@ rdf_loader::RDFLoader::RDFLoader(const std::string &robot_description)
       ROS_ERROR("Robot model not found! Did you remap '%s'?", robot_description_.c_str());
   }
   ROS_DEBUG_STREAM("Loaded robot model in " << (ros::WallTime::now() - start).toSec() << " seconds");
-}
-
-rdf_loader::RDFLoader::RDFLoader(const std::string &urdf_string, const std::string &srdf_string)
-{
-  moveit::Profiler::ScopedStart prof_start;
-  moveit::Profiler::ScopedBlock prof_block("RDFLoader(string)");
-
-  urdf::Model *umodel = new urdf::Model();
-  urdf_.reset(umodel);
-  if (umodel->initString(urdf_string))
-  {
-    srdf_.reset(new srdf::Model());
-    if (!srdf_->initString(*urdf_, srdf_string))
-    {
-      ROS_ERROR("Unable to parse SRDF");
-      srdf_.reset();
-    }
-  }
-  else
-  {
-    ROS_ERROR("Unable to parse URDF");
-    urdf_.reset();
-  }
-}
-
-rdf_loader::RDFLoader::RDFLoader(TiXmlDocument *urdf_doc, TiXmlDocument *srdf_doc)
-{
-  moveit::Profiler::ScopedStart prof_start;
-  moveit::Profiler::ScopedBlock prof_block("RDFLoader(XML)");
-
-  urdf::Model *umodel = new urdf::Model();
-  urdf_.reset(umodel);
-  if (umodel->initXml(urdf_doc))
-  {
-    srdf_.reset(new srdf::Model());
-    if (!srdf_->initXml(*urdf_, srdf_doc))
-    {
-      ROS_ERROR("Unable to parse SRDF");
-      srdf_.reset();
-    }
-  }
-  else
-  {
-    ROS_ERROR("Unable to parse URDF");
-    urdf_.reset();
-  }
 }

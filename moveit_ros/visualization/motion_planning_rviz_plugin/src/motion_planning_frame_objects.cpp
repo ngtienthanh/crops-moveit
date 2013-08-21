@@ -29,11 +29,10 @@
 
 /* Author: Ioan Sucan, Mario Prats */
 
-#include <moveit/warehouse/planning_scene_storage.h>
-
 #include <moveit/motion_planning_rviz_plugin/motion_planning_frame.h>
 #include <moveit/motion_planning_rviz_plugin/motion_planning_display.h>
 #include <moveit/robot_state/conversions.h>
+#include <moveit/warehouse/planning_scene_storage.h>
 #include <moveit/robot_interaction/interactive_marker_helpers.h>
 
 #include <interactive_markers/tools.h>
@@ -312,15 +311,15 @@ void MotionPlanningFrame::updateCollisionObjectPose(bool update_marker_position)
       p.translation()[0] = ui_->object_x->value();
       p.translation()[1] = ui_->object_y->value();
       p.translation()[2] = ui_->object_z->value();
-
+      
       p = Eigen::Translation3d(p.translation()) *
         (Eigen::AngleAxisd(ui_->object_rx->value(), Eigen::Vector3d::UnitX()) *
          Eigen::AngleAxisd(ui_->object_ry->value(), Eigen::Vector3d::UnitY()) *
          Eigen::AngleAxisd(ui_->object_rz->value(), Eigen::Vector3d::UnitZ()));
-
+      
       ps->getWorldNonConst()->moveShapeInObject(obj->id_, obj->shapes_[0], p);
       planning_display_->queueRenderSceneGeometry();
-
+      
       // Update the interactive marker pose to match the manually introduced one
       if (update_marker_position && scene_marker_)
       {
@@ -371,7 +370,7 @@ void  MotionPlanningFrame::imProcessFeedback(visualization_msgs::InteractiveMark
   oldState = ui_->object_rx->blockSignals(true);
   ui_->object_rx->setValue(xyz[0]);
   ui_->object_rx->blockSignals(oldState);
-
+  
   oldState = ui_->object_ry->blockSignals(true);
   ui_->object_ry->setValue(xyz[1]);
   ui_->object_ry->blockSignals(oldState);
@@ -379,7 +378,7 @@ void  MotionPlanningFrame::imProcessFeedback(visualization_msgs::InteractiveMark
   oldState = ui_->object_rz->blockSignals(true);
   ui_->object_rz->setValue(xyz[2]);
   ui_->object_rz->blockSignals(oldState);
-
+  
   updateCollisionObjectPose(false);
 }
 
@@ -643,7 +642,7 @@ void MotionPlanningFrame::computeLoadQueryButtonClicked()
         if (got_q)
         {
           robot_state::RobotStatePtr start_state(new robot_state::RobotState(*planning_display_->getQueryStartState()));
-          robot_state::robotStateMsgToRobotState(planning_display_->getPlanningSceneRO()->getTransforms(), mp->start_state, *start_state);
+          robot_state::robotStateMsgToRobotState(*planning_display_->getPlanningSceneRO()->getTransforms(), mp->start_state, *start_state);
           planning_display_->setQueryStartState(*start_state);
 
           robot_state::RobotStatePtr goal_state(new robot_state::RobotState(*planning_display_->getQueryGoalState()));
@@ -770,8 +769,7 @@ void MotionPlanningFrame::renameCollisionObject(QListWidgetItem *item)
       robot_state::AttachedBody *new_ab = new robot_state::AttachedBody(ab->getAttachedLink(),
                                                                         known_collision_objects_[item->type()].first,
                                                                         ab->getShapes(), ab->getFixedTransforms(),
-                                                                        ab->getTouchLinks(),
-                                                                        ab->getDetachPosture());
+                                                                        ab->getTouchLinks());
       cs.clearAttachedBody(ab->getName());
       cs.attachBody(new_ab);
     }
@@ -890,10 +888,10 @@ void MotionPlanningFrame::populateCollisionObjectsList()
 }
 
 void MotionPlanningFrame::exportAsTextButtonClicked()
-{
+{ 
   QString path = QFileDialog::getSaveFileName(this, tr("Export Scene Geometry"), tr(""), tr("Scene Geometry (*.scene)"));
   if (!path.isEmpty())
-    planning_display_->addBackgroundJob(boost::bind(&MotionPlanningFrame::computeExportAsText, this, path.toStdString()), "export as text");
+    planning_display_->addBackgroundJob(boost::bind(&MotionPlanningFrame::computeExportAsText, this, path.toStdString()));
 }
 
 void MotionPlanningFrame::computeExportAsText(const std::string &path)
@@ -924,8 +922,8 @@ void MotionPlanningFrame::computeImportFromText(const std::string &path)
     {
       ps->loadGeometryFromStream(fin);
       fin.close();
-      ROS_INFO("Loaded scene geometry from '%s'", path.c_str());
-      planning_display_->addMainLoopJob(boost::bind(&MotionPlanningFrame::populateCollisionObjectsList, this));
+      ROS_INFO("Loaded scene geometry from '%s'", path.c_str()); 
+      planning_display_->addMainLoopJob(boost::bind(&MotionPlanningFrame::populateCollisionObjectsList, this));  
       planning_display_->queueRenderSceneGeometry();
     }
     else
@@ -934,10 +932,10 @@ void MotionPlanningFrame::computeImportFromText(const std::string &path)
 }
 
 void MotionPlanningFrame::importFromTextButtonClicked()
-{
+{ 
   QString path = QFileDialog::getOpenFileName(this, tr("Import Scene Geometry"), tr(""), tr("Scene Geometry (*.scene)"));
-  if (!path.isEmpty())
-    planning_display_->addBackgroundJob(boost::bind(&MotionPlanningFrame::computeImportFromText, this, path.toStdString()), "import from text");
+  if (!path.isEmpty()) 
+    planning_display_->addBackgroundJob(boost::bind(&MotionPlanningFrame::computeImportFromText, this, path.toStdString()));
 }
 
 

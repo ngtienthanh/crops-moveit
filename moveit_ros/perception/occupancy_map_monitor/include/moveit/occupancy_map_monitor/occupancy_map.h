@@ -40,7 +40,6 @@
 #include <octomap/octomap.h>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/shared_mutex.hpp>
-#include <boost/function.hpp>
 
 namespace occupancy_map_monitor
 {
@@ -50,7 +49,7 @@ typedef octomap::OcTreeNode OccMapNode;
 class OccMapTree : public octomap::OcTree
 {
 public:
-
+  
   OccMapTree(double resolution) : octomap::OcTree(resolution)
   {
   }
@@ -58,48 +57,35 @@ public:
   OccMapTree(const std::string &filename) : octomap::OcTree(filename)
   {
   }
-
+  
   /** @brief lock the underlying octree. it will not be read or written by the
    *  monitor until unlockTree() is called */
   void lockRead()
   {
     tree_mutex_.lock_shared();
   }
-
+  
   /** @brief unlock the underlying octree. */
   void unlockRead()
   {
     tree_mutex_.unlock_shared();
   }
-
+  
   /** @brief lock the underlying octree. it will not be read or written by the
    *  monitor until unlockTree() is called */
   void lockWrite()
-  {
+  {  
     tree_mutex_.lock();
   }
-
+  
   /** @brief unlock the underlying octree. */
   void unlockWrite()
-  {
+  {  
     tree_mutex_.unlock();
   }
-
-  void triggerUpdateCallback(void)
-  {
-    if (update_callback_)
-      update_callback_();
-  }
-
-  /** @brief Set the callback to trigger when updates are received */
-  void setUpdateCallback(const boost::function<void()> &update_callback)
-  {
-    update_callback_ = update_callback;
-  }
-
+  
 private:
-  boost::shared_mutex tree_mutex_;
-  boost::function<void()> update_callback_;
+  boost::shared_mutex tree_mutex_;  
 };
 
 typedef boost::shared_ptr<OccMapTree> OccMapTreePtr;
@@ -107,4 +93,4 @@ typedef boost::shared_ptr<const OccMapTree> OccMapTreeConstPtr;
 
 }
 
-#endif
+#endif 

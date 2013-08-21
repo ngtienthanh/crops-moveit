@@ -19,7 +19,6 @@ add_definitions(-DQT_NO_KEYWORDS)
 
 find_package(catkin REQUIRED COMPONENTS
   moveit_ros_planning_interface
-  moveit_ros_robot_interaction
   moveit_ros_warehouse
   eigen_conversions
   geometric_shapes
@@ -44,7 +43,6 @@ catkin_package(
     motion_planning_rviz_plugin/include  
   CATKIN_DEPENDS
     moveit_ros_planning_interface
-    moveit_ros_robot_interaction
     )
 
 include_directories(rviz_plugin_render_tools/include

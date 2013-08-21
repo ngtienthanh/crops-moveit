@@ -39,11 +39,14 @@
 
 static const std::string ROBOT_DESCRIPTION="robot_description";
 
-void sendKnife()
+void constructScene(const planning_scene::PlanningScenePtr &scene)
 {
-  ros::NodeHandle nh;
-  ros::Publisher pub_aco = nh.advertise<moveit_msgs::AttachedCollisionObject>("attached_collision_object", 10);
-
+  scene->setName("pole_blocking_right_arm_pan");
+  
+  Eigen::Affine3d t;
+  t = Eigen::Translation3d(0.7, -0.5, 0.7);
+  scene->getWorldNonConst()->addToObject("pole", shapes::ShapeConstPtr(new shapes::Box(0.1, 0.1, 1.4)), t);
+  
   moveit_msgs::AttachedCollisionObject aco;
   aco.link_name = "r_wrist_roll_link";
   aco.touch_links.push_back("r_wrist_roll_link");
@@ -58,41 +61,87 @@ void sendKnife()
   aco.touch_links.push_back("r_gripper_r_finger_link");
   aco.touch_links.push_back("r_gripper_r_finger_tip_link");
   aco.touch_links.push_back("r_gripper_l_finger_tip_frame");
-
+  
+  random_numbers::RandomNumberGenerator rng;
   moveit_msgs::CollisionObject &co = aco.object;
-  co.id = "knife";
+  co.id = "bubu";
   co.header.stamp = ros::Time::now();
   co.header.frame_id = aco.link_name;
   co.operation = moveit_msgs::CollisionObject::ADD;
   co.primitives.resize(1);
   co.primitives[0].type = shape_msgs::SolidPrimitive::BOX;
-  co.primitives[0].dimensions.push_back(0.1);
-  co.primitives[0].dimensions.push_back(0.1);
-  co.primitives[0].dimensions.push_back(0.4);
+  co.primitives[0].dimensions.push_back(0.3);
+  co.primitives[0].dimensions.push_back(0.01);
+  co.primitives[0].dimensions.push_back(0.3);
   co.primitive_poses.resize(1);
-  co.primitive_poses[0].position.x = 0.1;
+  co.primitive_poses[0].position.x = 0.28;
   co.primitive_poses[0].position.y = 0;
-  co.primitive_poses[0].position.z = -0.2;
+  co.primitive_poses[0].position.z = 0;
   co.primitive_poses[0].orientation.w = 1.0;
 
-  pub_aco.publish(aco);
-  sleep(1);
-  pub_aco.publish(aco);
-  ROS_INFO("Object published.");
-  ros::Duration(1.5).sleep();
+  scene->processAttachedCollisionObjectMsg(aco);
+  std_msgs::ColorRGBA cl;
+  cl.r = 1.0f;
+  cl.g = 0.0f;
+  cl.b = 0.0f; 
+  cl.a = 1.0f;
+  scene->setObjectColor(co.id, cl);   
 }
 
+void sendScene()
+{  
+  ros::NodeHandle nh;
+  boost::shared_ptr<tf::TransformListener> tf(new tf::TransformListener());
+  planning_scene_monitor::PlanningSceneMonitor psm(ROBOT_DESCRIPTION, tf);
+  ros::Publisher pub_scene = nh.advertise<moveit_msgs::PlanningScene>("planning_scene", 1);
+  
+  constructScene(psm.getPlanningScene());
+  ros::Duration(0.5).sleep();
+  
+  moveit_msgs::PlanningScene psmsg;
+  psm.getPlanningScene()->getPlanningSceneMsg(psmsg);
+  pub_scene.publish(psmsg);
+  ROS_INFO("Scene published.");
+}
+
+void sendCollisionObject()
+{
+  ros::NodeHandle nh;
+  tf::TransformListener tf;
+  ros::Publisher pub_co = nh.advertise<moveit_msgs::CollisionObject>("collision_object", 10);
+  sleep(1);
+  random_numbers::RandomNumberGenerator rng;
+  
+  moveit_msgs::CollisionObject co;
+  co.id = "test" + boost::lexical_cast<std::string>(rng.uniformReal(0,100000));
+  co.header.stamp = ros::Time::now();
+  co.header.frame_id = "odom";
+  co.operation = moveit_msgs::CollisionObject::ADD;
+  co.primitives.resize(1);
+  co.primitives[0].type = shape_msgs::SolidPrimitive::SPHERE;
+  co.primitives[0].dimensions.resize(shape_tools::SolidPrimitiveDimCount<shape_msgs::SolidPrimitive::SPHERE>::value);
+  co.primitives[0].dimensions[shape_msgs::SolidPrimitive::SPHERE_RADIUS] = 0.05;
+  co.primitive_poses.resize(1);
+  co.primitive_poses[0].position.x = rng.uniformReal(-1.5, 1.5);
+  co.primitive_poses[0].position.y = rng.uniformReal(-1.5, 1.5);
+  co.primitive_poses[0].position.z = rng.uniformReal(0.1, 2.0);
+  co.primitive_poses[0].orientation.w = 1.0;
+  pub_co.publish(co);
+  ROS_INFO("Object published.");
+  ros::Duration(0.5).sleep();
+  
+}
 
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "demo", ros::init_options::AnonymousName);
-
+  
   ros::AsyncSpinner spinner(1);
   spinner.start();
-
-  sendKnife();
-
+  sendScene();
+  //    sendCollisionObject();    
+  
   ros::waitForShutdown();
-
+  
   return 0;
 }

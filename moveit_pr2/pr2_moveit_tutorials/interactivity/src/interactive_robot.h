@@ -95,7 +95,7 @@ public:
   void *user_data_;
 
 private:
-  /* Indicate that the world or the robot has changed and
+  /* Indicate that the world or the robot has changed and 
    * the new state needs to be updated and published to rviz */
   void scheduleUpdate();
 
@@ -132,7 +132,7 @@ private:
   IMarker *imarker_world_;
 
   /* robot info */
-  robot_model_loader::RobotModelLoader rm_loader_;
+  robot_model_loader::RDFLoader rdf_loader_;
   robot_model::RobotModelPtr robot_model_;
   robot_state::RobotStatePtr robot_state_;
 

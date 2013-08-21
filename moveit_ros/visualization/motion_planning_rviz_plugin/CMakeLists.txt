@@ -16,6 +16,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 # Plugin Source
 set(SOURCE_FILES 
+  src/background_processing.cpp
   src/motion_planning_frame.cpp
   src/motion_planning_frame_context.cpp
   src/motion_planning_frame_planning.cpp

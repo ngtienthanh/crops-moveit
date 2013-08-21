@@ -124,14 +124,13 @@ private Q_SLOTS:
   void alterTree( const QString &link );
 
   /// Called from Double List widget to highlight a link
-  void previewSelectedLink( std::vector<std::string> links );
+  void previewClickedLink( std::string name );
 
   /// Called from Double List widget to highlight a joint
-  //void previewClickedJoint( std::string name );
-  void previewSelectedJoints( std::vector<std::string> joints );
+  void previewClickedJoint( std::string name );
 
   /// Called from Double List widget to highlight a subgroup
-  void previewSelectedSubgroup( std::vector<std::string> groups );
+  void previewClickedSubgroup( std::string name );
 
 private:
 
@@ -149,7 +148,7 @@ private:
   QPushButton* btn_edit_;
 
   QPushButton* btn_delete_;
-
+  
   // Stacked Layout SUBPAGES -------------------------------------------
 
   QWidget* groups_tree_widget_;
@@ -174,7 +173,7 @@ private:
 
   /// Remember whethere we're editing a group or adding a new one
   bool adding_new_group_;
-
+  
   // ******************************************************************************************
   // Private Functions
   // ******************************************************************************************
@@ -229,3 +228,4 @@ Q_DECLARE_METATYPE(PlanGroupType);
 
 
 #endif
+

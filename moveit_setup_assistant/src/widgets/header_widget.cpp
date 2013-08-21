@@ -54,7 +54,7 @@ HeaderWidget::HeaderWidget( const std::string &title, const std::string &instruc
 {
   // Basic widget container
   QVBoxLayout *layout = new QVBoxLayout(this);
-  layout->setAlignment( Qt::AlignTop);
+  layout->setAlignment( Qt::AlignTop);    
 
   // Page Title
   QLabel *page_title = new QLabel( this );
@@ -64,7 +64,7 @@ HeaderWidget::HeaderWidget( const std::string &title, const std::string &instruc
   page_title->setWordWrap(true);
   layout->addWidget( page_title);
   layout->setAlignment( page_title, Qt::AlignTop);
-
+  
   // Page Instructions
   QLabel *page_instructions = new QLabel( this );
   page_instructions->setText( instructions.c_str() );
@@ -72,7 +72,7 @@ HeaderWidget::HeaderWidget( const std::string &title, const std::string &instruc
   //page_instructions->setSizePolicy( QSizePolicy::Preferred, QSizePolicy::Expanding );
   page_instructions->setMinimumWidth(1);
   layout->addWidget( page_instructions );
-  layout->setAlignment( page_instructions, Qt::AlignTop);
+  layout->setAlignment( page_instructions, Qt::AlignTop);    
 
   // Margin on bottom
   layout->setContentsMargins( 0, 0, 0, 0); // last 15
@@ -91,7 +91,7 @@ HeaderWidget::HeaderWidget( const std::string &title, const std::string &instruc
 // ******************************************************************************************
 // Create the widget
 // ******************************************************************************************
-LoadPathWidget::LoadPathWidget( const std::string &title, const std::string &instructions,
+LoadPathWidget::LoadPathWidget( const std::string &title, const std::string &instructions, 
                                 const bool dir_only, const bool load_only, QWidget* parent )
   : QFrame(parent), dir_only_(dir_only), load_only_(load_only)
 {
@@ -106,7 +106,7 @@ LoadPathWidget::LoadPathWidget( const std::string &title, const std::string &ins
 
   // Horizontal layout splitter
   QHBoxLayout *hlayout = new QHBoxLayout();
-
+    
   // Widget Title
   QLabel * widget_title = new QLabel(this);
   widget_title->setText( title.c_str() );
@@ -121,7 +121,7 @@ LoadPathWidget::LoadPathWidget( const std::string &title, const std::string &ins
   widget_instructions->setWordWrap(true);
   widget_instructions->setTextFormat( Qt::RichText );
   layout->addWidget( widget_instructions);
-  layout->setAlignment( widget_instructions, Qt::AlignTop);
+  layout->setAlignment( widget_instructions, Qt::AlignTop);    
 
   // Line Edit
   path_box_ = new QLineEdit(this);
@@ -156,6 +156,31 @@ void LoadPathWidget::btn_file_dialog()
 
       start_path = path_box_->text();
 
+      /*
+    // smart load: open file dialog in location of stack directory
+    if( path_box_->text() != "" )
+    {
+      start_path = path_box_->text();
+    }
+    else
+    {
+      // Temp pointers used for casting and accessing parent widget elements
+      StartScreenWidget *my_parent = qobject_cast< StartScreenWidget* >( this->parentWidget() );
+      LoadPathWidget *my_stack_path = qobject_cast< LoadPathWidget* >( my_parent->stack_path_ );
+      LoadPathWidget *my_urdf_path = qobject_cast< LoadPathWidget* >( my_parent->urdf_file_ );
+
+      // Check if the urdf file was already loaded
+      if( my_urdf_path->path_box_->text() != "" ) // it has text
+      {
+        start_path = my_urdf_path->path_box_->text();
+      }
+      else
+      {
+        start_path = my_stack_path->path_box_->text();	
+      }
+    }
+    */
+
     if( load_only_ )
     {
       path = QFileDialog::getOpenFileName(this, "Open File", start_path, "");
@@ -165,7 +190,7 @@ void LoadPathWidget::btn_file_dialog()
       path = QFileDialog::getSaveFileName(this, "Create/Load File", start_path, "" );
     }
   }
-
+  
   // check they did not press cancel
   if (path != NULL)
     path_box_->setText( path );

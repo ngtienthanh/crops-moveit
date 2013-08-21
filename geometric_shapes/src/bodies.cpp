@@ -41,16 +41,6 @@
 
 extern "C"
 {
-#ifdef GEOMETRIC_SHAPES_HAVE_QHULL_2011
-#include <libqhull/libqhull.h>
-#include <libqhull/mem.h>
-#include <libqhull/qset.h>
-#include <libqhull/geom.h>
-#include <libqhull/merge.h>
-#include <libqhull/poly.h>
-#include <libqhull/io.h>
-#include <libqhull/stat.h>
-#else
 #include <qhull/qhull.h>
 #include <qhull/mem.h>
 #include <qhull/qset.h>
@@ -59,7 +49,6 @@ extern "C"
 #include <qhull/poly.h>
 #include <qhull/io.h>
 #include <qhull/stat.h>
-#endif
 }
 
 #include <boost/math/constants/constants.hpp>
@@ -87,10 +76,10 @@ static inline double distanceSQR(const Eigen::Vector3d& p, const Eigen::Vector3d
 struct intersc
 {
   intersc(const Eigen::Vector3d &_pt, const double _tm) : pt(_pt), time(_tm) {}
-
+  
   Eigen::Vector3d pt;
   double          time;
-
+  
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
@@ -749,7 +738,7 @@ void bodies::ConvexMesh::useDimensions(const shapes::Shape *shape)
     points[3*i+0] = (coordT) mesh->vertices[3*i+0];
     points[3*i+1] = (coordT) mesh->vertices[3*i+1];
     points[3*i+2] = (coordT) mesh->vertices[3*i+2];
-
+    
     double dista = mesh->vertices[3 * i + off1]-pose1;
     double distb = mesh->vertices[3 * i + off2]-pose2;
     double dist = sqrt(((dista*dista)+(distb*distb)));
@@ -763,7 +752,7 @@ void bodies::ConvexMesh::useDimensions(const shapes::Shape *shape)
 
   char flags[] = "qhull Tv";
   int exitcode = qh_new_qhull(3, mesh->vertex_count, points, true, flags, null, null);
-
+  
   if (exitcode != 0)
   {
     logWarn("Convex hull creation failed");
@@ -774,7 +763,7 @@ void bodies::ConvexMesh::useDimensions(const shapes::Shape *shape)
   }
 
   int num_facets = qh num_facets;
-
+  
   int num_vertices = qh num_vertices;
   mesh_data_->vertices_.reserve(num_vertices);
   Eigen::Vector3d sum(0, 0, 0);
@@ -791,7 +780,7 @@ void bodies::ConvexMesh::useDimensions(const shapes::Shape *shape)
     sum += vert;
     mesh_data_->vertices_.push_back(vert);
   }
-
+  
   mesh_data_->mesh_center_ = sum / (double)(num_vertices);
   for (unsigned int j = 0 ; j < mesh_data_->vertices_.size() ; ++j)
   {
@@ -799,7 +788,7 @@ void bodies::ConvexMesh::useDimensions(const shapes::Shape *shape)
     if (dist > mesh_data_->mesh_radiusB_)
       mesh_data_->mesh_radiusB_ = dist;
   }
-
+  
   mesh_data_->mesh_radiusB_ = sqrt(mesh_data_->mesh_radiusB_);
   mesh_data_->triangles_.reserve(num_facets);
 
@@ -970,11 +959,11 @@ bool bodies::ConvexMesh::intersectsRay(const Eigen::Vector3d& origin, const Eige
     Eigen::Vector3d vec(mesh_data_->planes_[i].x(),
                         mesh_data_->planes_[i].y(),
                         mesh_data_->planes_[i].z());
-
+    
     double tmp = vec.dot(dr);
     if (fabs(tmp) > detail::ZERO)
     {
-
+                          
       double t = -(vec.dot(orig) + mesh_data_->planes_[i].w()) / tmp;
       if (t > 0.0)
       {

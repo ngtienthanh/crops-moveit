@@ -1,21 +1,21 @@
 <package>
 
   <name>pr2_moveit_config</name>
-  <version>0.4.3</version>
+  <version>0.3.9</version>
   <description>
-     An automatically generated package with all the configuration and launch files for using the pr2 with the MoveIt Motion Planning Framework
+     pr2_moveit_config
   </description>
   <author email="assistant@moveit.ros.org">MoveIt Setup Assistant</author>
   <maintainer email="assistant@moveit.ros.org">MoveIt Setup Assistant</maintainer>
 
   <license>BSD</license>
 
-  <url type="website">http://moveit.ros.org/</url>
-  <url type="bugtracker">https://github.com/ros-planning/moveit_setup_assistant/issues</url>
-  <url type="repository">https://github.com/ros-planning/moveit_setup_assistant</url>
-
-  <run_depend>moveit_ros_move_group</run_depend>
+  <url type="website">http://moveit.ros.org</url>
+  <url type="bugtracker">https://github.com/ros-planning/moveit-setup-assistant/issues</url>
+  <url type="repository">https://github.com/ros-planning/moveit-setup-assistant</url>
 
   <buildtool_depend>catkin</buildtool_depend>
   
+  <run_depend>moveit_ros_planning</run_depend>
+
 </package>

@@ -43,23 +43,21 @@ namespace pick_place
 ManipulationPipeline::ManipulationPipeline(const std::string &name, unsigned int nthreads) :
   name_(name),
   nthreads_(nthreads),
-  verbose_(false),
   stop_processing_(true)
 {
   processing_threads_.resize(nthreads, NULL);
 }
 
 ManipulationPipeline::~ManipulationPipeline()
-{
+{  
   reset();
 }
 
 ManipulationPipeline& ManipulationPipeline::addStage(const ManipulationStagePtr &next)
 {
-  next->setVerbose(verbose_);
   stages_.push_back(next);
   return *this;
-}
+} 
 
 const ManipulationStagePtr& ManipulationPipeline::getFirstStage() const
 {
@@ -69,7 +67,7 @@ const ManipulationStagePtr& ManipulationPipeline::getFirstStage() const
     return empty;
   }
   else
-    return stages_.front();
+    return stages_.front();    
 }
 
 const ManipulationStagePtr& ManipulationPipeline::getLastStage() const
@@ -87,13 +85,6 @@ void ManipulationPipeline::reset()
 {
   clear();
   stages_.clear();
-}
-
-void ManipulationPipeline::setVerbose(bool flag)
-{
-  verbose_ = flag;
-  for (std::size_t i = 0 ; i < stages_.size() ; ++i)
-    stages_[i]->setVerbose(flag);
 }
 
 void ManipulationPipeline::clear()
@@ -126,12 +117,12 @@ void ManipulationPipeline::signalStop()
   for (std::size_t i = 0 ; i < stages_.size() ; ++i)
     stages_[i]->signalStop();
   stop_processing_ = true;
-  queue_access_cond_.notify_all();
+  queue_access_cond_.notify_all();  
 }
 
 void ManipulationPipeline::stop()
-{
-  signalStop();
+{ 
+  signalStop(); 
   for (std::size_t i = 0; i < processing_threads_.size() ; ++i)
     if (processing_threads_[i])
     {
@@ -144,7 +135,7 @@ void ManipulationPipeline::stop()
 void ManipulationPipeline::processingThread(unsigned int index)
 {
   ROS_DEBUG_STREAM("Start thread " << index << " for '" << name_ << "'");
-
+  
   while (!stop_processing_)
   {
     bool inc_queue = false;
@@ -158,7 +149,7 @@ void ManipulationPipeline::processingThread(unsigned int index)
         empty_queue_callback_();
     }
     while (queue_.empty() && !stop_processing_)
-      queue_access_cond_.wait(ulock);
+      queue_access_cond_.wait(ulock); 
     while (!stop_processing_ && !queue_.empty())
     {
       ManipulationPlanPtr g = queue_.front();
@@ -168,14 +159,14 @@ void ManipulationPipeline::processingThread(unsigned int index)
         empty_queue_threads_--;
         inc_queue = false;
       }
-
+      
       queue_access_lock_.unlock();
       try
       {
         g->error_code_.val = moveit_msgs::MoveItErrorCodes::FAILURE;
         for (std::size_t i = 0 ; !stop_processing_ && i < stages_.size() ; ++i)
-        {
-      bool res = stages_[i]->evaluate(g);
+        {  
+	  bool res = stages_[i]->evaluate(g);
           g->processing_stage_ = i + 1;
           if (res == false)
           {
@@ -187,7 +178,7 @@ void ManipulationPipeline::processingThread(unsigned int index)
         }
         if (g->error_code_.val == moveit_msgs::MoveItErrorCodes::SUCCESS)
         {
-      g->processing_stage_++;
+	  g->processing_stage_++;
           {
             boost::mutex::scoped_lock slock(result_lock_);
             success_.push_back(g);
@@ -205,7 +196,7 @@ void ManipulationPipeline::processingThread(unsigned int index)
       catch (...)
       {
         ROS_ERROR("[%s:%u] Caught unknown exception while processing manipulation stage", name_.c_str(), index);
-      }
+      }      
       queue_access_lock_.lock();
     }
   }
@@ -216,19 +207,6 @@ void ManipulationPipeline::push(const ManipulationPlanPtr &plan)
   boost::mutex::scoped_lock slock(queue_access_lock_);
   queue_.push_back(plan);
   ROS_INFO_STREAM("Added plan for pipeline '" << name_ << "'. Queue is now of size " << queue_.size());
-  queue_access_cond_.notify_all();
-}
-
-void ManipulationPipeline::reprocessLastFailure()
-{
-  boost::mutex::scoped_lock slock(queue_access_lock_);
-  if (failed_.empty())
-    return;
-  ManipulationPlanPtr plan = failed_.back();
-  failed_.pop_back();
-  plan->clear();
-  queue_.push_back(plan);
-  ROS_INFO_STREAM("Re-added last failed plan for pipeline '" << name_ << "'. Queue is now of size " << queue_.size());
   queue_access_cond_.notify_all();
 }
 

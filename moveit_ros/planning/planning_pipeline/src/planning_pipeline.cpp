@@ -39,41 +39,38 @@
 #include <moveit_msgs/DisplayTrajectory.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <boost/tokenizer.hpp>
-#include <boost/algorithm/string/join.hpp>
 #include <sstream>
 
 const std::string planning_pipeline::PlanningPipeline::DISPLAY_PATH_TOPIC = "display_planned_path";
 const std::string planning_pipeline::PlanningPipeline::MOTION_PLAN_REQUEST_TOPIC = "motion_plan_request";
 const std::string planning_pipeline::PlanningPipeline::MOTION_CONTACTS_TOPIC = "display_contacts";
 
-planning_pipeline::PlanningPipeline::PlanningPipeline(const robot_model::RobotModelConstPtr& model,
-                                                      const ros::NodeHandle &nh,
+planning_pipeline::PlanningPipeline::PlanningPipeline(const robot_model::RobotModelConstPtr& model, 
                                                       const std::string &planner_plugin_param_name,
                                                       const std::string &adapter_plugins_param_name) :
-  nh_(nh),
+  nh_("~"),
   kmodel_(model)
 {
   std::string planner;
   if (nh_.getParam(planner_plugin_param_name, planner))
     planner_plugin_name_ = planner;
-
+  
   std::string adapters;
   if (nh_.getParam(adapter_plugins_param_name, adapters))
-  {
+  { 
     boost::char_separator<char> sep(" ");
     boost::tokenizer<boost::char_separator<char> > tok(adapters, sep);
     for(boost::tokenizer<boost::char_separator<char> >::iterator beg = tok.begin() ; beg != tok.end(); ++beg)
       adapter_plugin_names_.push_back(*beg);
   }
-
+  
   configure();
 }
 
-planning_pipeline::PlanningPipeline::PlanningPipeline(const robot_model::RobotModelConstPtr& model,
-                                                      const ros::NodeHandle &nh,
+planning_pipeline::PlanningPipeline::PlanningPipeline(const robot_model::RobotModelConstPtr& model, 
                                                       const std::string &planner_plugin_name,
                                                       const std::vector<std::string> &adapter_plugin_names) :
-  nh_(nh),
+  nh_("~"),
   planner_plugin_name_(planner_plugin_name),
   adapter_plugin_names_(adapter_plugin_names),
   kmodel_(model)
@@ -86,46 +83,47 @@ void planning_pipeline::PlanningPipeline::configure()
   check_solution_paths_ = false;          // this is set to true below
   publish_received_requests_ = false;
   display_computed_motion_plans_ = false; // this is set to true below
-
+  
   // load the planning plugin
   try
   {
-    planner_plugin_loader_.reset(new pluginlib::ClassLoader<planning_interface::PlannerManager>("moveit_core", "planning_interface::PlannerManager"));
+    planner_plugin_loader_.reset(new pluginlib::ClassLoader<planning_interface::Planner>("moveit_core", "planning_interface::Planner"));
   }
   catch(pluginlib::PluginlibException& ex)
   {
     ROS_FATAL_STREAM("Exception while creating planning plugin loader " << ex.what());
   }
 
-  std::vector<std::string> classes;
-  if (planner_plugin_loader_)
-    classes = planner_plugin_loader_->getDeclaredClasses();
+  const std::vector<std::string> &classes = planner_plugin_loader_->getDeclaredClasses();
   if (planner_plugin_name_.empty() && classes.size() == 1)
   {
     planner_plugin_name_ = classes[0];
     ROS_INFO("No '~planning_plugin' parameter specified, but only '%s' planning plugin is available. Using that one.", planner_plugin_name_.c_str());
   }
   if (planner_plugin_name_.empty() && classes.size() > 1)
-  {
-    planner_plugin_name_ = classes[0];
+  {      
+    planner_plugin_name_ = classes[0];   
     ROS_INFO("Multiple planning plugins available. You should specify the '~planning_plugin' parameter. Using '%s' for now.", planner_plugin_name_.c_str());
   }
   try
   {
     planner_instance_.reset(planner_plugin_loader_->createUnmanagedInstance(planner_plugin_name_));
-    if (!planner_instance_->initialize(kmodel_, nh_.getNamespace()))
+    if (!planner_instance_->initialize(kmodel_))
       throw std::runtime_error("Unable to initialize planning plugin");
     ROS_INFO_STREAM("Using planning interface '" << planner_instance_->getDescription() << "'");
   }
   catch(pluginlib::PluginlibException& ex)
   {
+    std::stringstream ss;
+    for (std::size_t i = 0 ; i < classes.size() ; ++i)
+      ss << classes[i] << " ";
     ROS_ERROR_STREAM("Exception while loading planner '" << planner_plugin_name_ << "': " << ex.what() << std::endl
-                     << "Available plugins: " << boost::algorithm::join(classes, ", "));
+                     << "Available plugins: " << ss.str());
   }
-
+  
   // load the planner request adapters
   if (!adapter_plugin_names_.empty())
-  {
+  {   
     std::vector<planning_request_adapter::PlanningRequestAdapterConstPtr> ads;
     try
     {
@@ -135,22 +133,21 @@ void planning_pipeline::PlanningPipeline::configure()
     {
       ROS_ERROR_STREAM("Exception while creating planning plugin loader " << ex.what());
     }
-
-    if (adapter_plugin_loader_)
-      for (std::size_t i = 0 ; i < adapter_plugin_names_.size() ; ++i)
+    
+    for (std::size_t i = 0 ; i < adapter_plugin_names_.size() ; ++i)
+    {
+      planning_request_adapter::PlanningRequestAdapterConstPtr ad;
+      try
       {
-        planning_request_adapter::PlanningRequestAdapterConstPtr ad;
-        try
-        {
-          ad.reset(adapter_plugin_loader_->createUnmanagedInstance(adapter_plugin_names_[i]));
-        }
-        catch (pluginlib::PluginlibException& ex)
-        {
-          ROS_ERROR_STREAM("Exception while loading planning adapter plugin '" << adapter_plugin_names_[i] << "': " << ex.what());
-        }
-        if (ad)
-          ads.push_back(ad);
+        ad.reset(adapter_plugin_loader_->createUnmanagedInstance(adapter_plugin_names_[i]));
       }
+      catch (pluginlib::PluginlibException& ex)
+      {
+        ROS_ERROR_STREAM("Exception while loading planning adapter plugin '" << adapter_plugin_names_[i] << "': " << ex.what());
+      }
+      if (ad)
+        ads.push_back(ad);
+    }
     if (!ads.empty())
     {
       adapter_chain_.reset(new planning_request_adapter::PlanningRequestAdapterChain());
@@ -186,7 +183,7 @@ void planning_pipeline::PlanningPipeline::publishReceivedRequests(bool flag)
 }
 
 void planning_pipeline::PlanningPipeline::checkSolutionPaths(bool flag)
-{
+{ 
   if (check_solution_paths_ && !flag)
     contacts_publisher_.shutdown();
   else
@@ -212,13 +209,13 @@ bool planning_pipeline::PlanningPipeline::generatePlan(const planning_scene::Pla
   if (publish_received_requests_)
     received_request_publisher_.publish(req);
   adapter_added_state_index.clear();
-
+  
   if (!planner_instance_)
   {
     ROS_ERROR("No planning plugin loaded. Cannot plan.");
     return false;
   }
-
+  
   bool solved = false;
   try
   {
@@ -234,10 +231,7 @@ bool planning_pipeline::PlanningPipeline::generatePlan(const planning_scene::Pla
       }
     }
     else
-    {
-      planning_interface::PlanningContextPtr context = planner_instance_->getPlanningContext(planning_scene, req, res.error_code_);
-      solved = context ? context->solve(res) : false;
-    }
+      solved = planner_instance_->solve(planning_scene, req, res);
   }
   catch(std::runtime_error &ex)
   {
@@ -250,7 +244,7 @@ bool planning_pipeline::PlanningPipeline::generatePlan(const planning_scene::Pla
     return false;
   }
   bool valid = true;
-
+  
   if (solved && res.trajectory_)
   {
     std::size_t state_count = res.trajectory_->getWayPointCount();
@@ -276,20 +270,20 @@ bool planning_pipeline::PlanningPipeline::generatePlan(const planning_scene::Pla
             problem = true;
         }
         if (problem)
-        {
+        {          
           if (index.size() == 1 && index[0] == 0) // ignore cases when the robot starts at invalid location
             ROS_DEBUG("It appears the robot is starting at an invalid state, but that is ok.");
           else
           {
             valid = false;
-            res.error_code_.val = moveit_msgs::MoveItErrorCodes::INVALID_MOTION_PLAN;
-
+            res.error_code_.val = moveit_msgs::MoveItErrorCodes::INVALID_MOTION_PLAN;            
+            
             // display error messages
             std::stringstream ss;
             for (std::size_t i = 0 ; i < index.size() ; ++i)
               ss << index[i] << " ";
             ROS_ERROR_STREAM("Computed path is not valid. Invalid states at index locations: [ " << ss.str() << "] out of " << state_count);
-
+            
             // call validity checks in verbose mode for the problematic states
             visualization_msgs::MarkerArray arr;
             for (std::size_t i = 0 ; i < index.size() ; ++i)
@@ -297,7 +291,7 @@ bool planning_pipeline::PlanningPipeline::generatePlan(const planning_scene::Pla
               // check validity with verbose on
               const robot_state::RobotState &kstate = res.trajectory_->getWayPoint(index[i]);
               planning_scene->isStateValid(kstate, req.group_name, true);
-
+              
               // compute the contacts if any
               collision_detection::CollisionRequest c_req;
               collision_detection::CollisionResult c_res;
@@ -324,18 +318,18 @@ bool planning_pipeline::PlanningPipeline::generatePlan(const planning_scene::Pla
         ROS_DEBUG("Planned path was found to be valid when rechecked");
     }
   }
-
+  
   // display solution path if needed
   if (display_computed_motion_plans_ && solved)
-  {
+  { 
     moveit_msgs::DisplayTrajectory disp;
     disp.model_id = kmodel_->getName();
     disp.trajectory.resize(1);
     res.trajectory_->getRobotTrajectoryMsg(disp.trajectory[0]);
     robot_state::robotStateToRobotStateMsg(res.trajectory_->getFirstWayPoint(), disp.trajectory_start);
-    display_path_publisher_.publish(disp);
+    display_path_publisher_.publish(disp);      
   }
-
+  
   return solved && valid;
 }
 

@@ -1,6 +1,6 @@
 <package>
   <name>moveit_ros_visualization</name>
-  <version>0.4.6</version>
+  <version>0.3.25</version>
   <description>Components of MoveIt that offer visualization</description>
 
   <author email="isucan@willowgarage.com">Ioan Sucan</author> 
@@ -11,8 +11,8 @@
   <license>BSD</license>
 
   <url type="website">http://moveit.ros.org</url>
-  <url type="bugtracker">https://github.com/ros-planning/moveit_ros/issues</url>
-  <url type="repository">https://github.com/ros-planning/moveit_ros</url>
+  <url type="bugtracker">https://github.com/ros-planning/moveit-ros/issues</url>
+  <url type="repository">https://github.com/ros-planning/moveit-ros</url>
 
   <buildtool_depend>catkin</buildtool_depend> 
 
@@ -20,7 +20,6 @@
   <build_depend>rviz</build_depend>
   <build_depend>moveit_ros_planning_interface</build_depend>
   <build_depend>moveit_ros_warehouse</build_depend>
-  <build_depend>moveit_ros_robot_interaction</build_depend>
   <build_depend>pluginlib</build_depend> 
   <build_depend>interactive_markers</build_depend>
   <build_depend>geometric_shapes</build_depend>
@@ -29,7 +28,6 @@
   <run_depend>rviz</run_depend>
   <run_depend>moveit_ros_planning_interface</run_depend>
   <run_depend>moveit_ros_warehouse</run_depend>
-  <run_depend>moveit_ros_robot_interaction</run_depend>
   <run_depend>pluginlib</run_depend> 
   <run_depend>interactive_markers</run_depend>
   <run_depend>geometric_shapes</run_depend>

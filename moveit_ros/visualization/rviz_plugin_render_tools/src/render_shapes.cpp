@@ -31,7 +31,7 @@
 
 #include <moveit/rviz_plugin_render_tools/render_shapes.h>
 #include <moveit/rviz_plugin_render_tools/octomap_render.h>
-#include <geometric_shapes/mesh_operations.h>
+
 
 #include <OGRE/OgreSceneNode.h>
 #include <OGRE/OgreSceneManager.h>
@@ -44,7 +44,6 @@
 
 #include <boost/lexical_cast.hpp>
 #include <boost/math/constants/constants.hpp>
-#include <boost/scoped_ptr.hpp>
 
 namespace moveit_rviz_plugin
 {
@@ -86,16 +85,7 @@ void RenderShapes::renderShape(Ogre::SceneNode *node,
                                float alpha)
 {
   rviz::Shape* ogre_shape = NULL;
-
-  // we don't know how to render cones directly, but we can convert them to a mesh
-  if (s->type == shapes::CONE)
-  {
-    boost::scoped_ptr<shapes::Mesh> m(shapes::createMeshFromShape(static_cast<const shapes::Cone&>(*s)));
-    if (m)
-      renderShape(node, m.get(), p, octree_voxel_rendering, octree_color_mode, color, alpha);
-    return;
-  }
-
+  
   switch (s->type)
   {
   case shapes::SPHERE:
@@ -153,26 +143,19 @@ void RenderShapes::renderShape(Ogre::SceneNode *node,
         manual_object->estimateVertexCount(mesh->triangle_count * 3);
         manual_object->begin(materials_.back()->getName(), Ogre::RenderOperation::OT_TRIANGLE_LIST);
         Eigen::Vector3d normal(0.0, 0.0, 0.0);
-        Eigen::Matrix3d rot = p.rotation();
         for (unsigned int i = 0 ; i < mesh->triangle_count ; ++i)
         {
           unsigned int i3 = i * 3;
-          if (mesh->triangle_normals && !mesh->vertex_normals)
-            normal = rot * Eigen::Vector3d(mesh->triangle_normals[i3], mesh->triangle_normals[i3 + 1], mesh->triangle_normals[i3 + 2]);
-
+          if (mesh->normals)
+            for (int k = 0 ; k < 3 ; ++k)
+              normal[k] = mesh->normals[i3 + k];
           for (int k = 0 ; k < 3 ; ++k)
           {
             unsigned int vi = 3 * mesh->triangles[i3 + k];
             Eigen::Vector3d v = p * Eigen::Vector3d(mesh->vertices[vi], mesh->vertices[vi + 1], mesh->vertices[vi + 2]);
             manual_object->position(v.x(), v.y(), v.z());
-            if (mesh->vertex_normals)
-            {
-              normal = rot * Eigen::Vector3d(mesh->vertex_normals[vi], mesh->vertex_normals[vi + 1], mesh->vertex_normals[vi + 2]);
+            if (mesh->normals)
               manual_object->normal(normal.x(), normal.y(), normal.z());
-            }
-            else
-              if (mesh->triangle_normals)
-                manual_object->normal(normal.x(), normal.y(), normal.z());
           }
         }
         manual_object->end();
@@ -222,3 +205,4 @@ void RenderShapes::renderShape(Ogre::SceneNode *node,
 }
 
 }
+

@@ -39,7 +39,7 @@
 
 #include <moveit/robot_model/robot_model.h>
 #include <moveit/robot_state/robot_state.h>
-#include <moveit/transforms/transforms.h>
+#include <moveit/robot_state/transforms.h>
 #include <moveit/collision_detection/collision_detector_allocator.h>
 #include <moveit/collision_detection/world_diff.h>
 #include <moveit/kinematic_constraints/kinematic_constraint.h>
@@ -49,7 +49,6 @@
 #include <moveit_msgs/PlanningScene.h>
 #include <moveit_msgs/RobotTrajectory.h>
 #include <moveit_msgs/Constraints.h>
-#include <moveit_msgs/PlanningSceneComponents.h>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/noncopyable.hpp>
 #include <boost/shared_ptr.hpp>
@@ -95,6 +94,7 @@ public:
    * A RobotModel for the PlanningScene will be created using the urdf and srdf. */
   PlanningScene(const boost::shared_ptr<const urdf::ModelInterface> &urdf_model,
                 const boost::shared_ptr<const srdf::Model> &srdf_model,
+                const std::string &root_link = "",
                 collision_detection::WorldPtr world = collision_detection::WorldPtr(new collision_detection::World()));
 
   static const std::string COLLISION_MAP_NS;
@@ -123,26 +123,14 @@ public:
    * used together.
    *
    * This does nothing if this type of collision detector has already been added.
-   *
-   * A new PlanningScene contains an FCL collision detector.  This FCL
-   * collision detector will always be available unless it is removed by
-   * calling setActiveCollisionDetector() with exclusive=true.
-   *
-   * example: to add FCL collision detection (normally not necessary) call
-   *   planning_scene->addCollisionDetector(collision_detection::CollisionDetectorAllocatorFCL::create());
-   *
-   * */
+   * 
+   * A new PlanningScene contains an FCL collision detector.  This FCL collision detector will always be available unless it is removed by calling setActiveCollisionDetector() with exclusive=true. */
   void addCollisionDetector(const collision_detection::CollisionDetectorAllocatorPtr& allocator);
 
   /** \brief Set the type of collision detector to use.
    * Calls addCollisionDetector() to add it if it has not already been added.
    *
-   * If exclusive is true then all other collision detectors will be removed
-   * and only this one will be available.
-   *
-   * example: to use FCL collision call
-   *   planning_scene->setActiveCollisionDetector(collision_detection::CollisionDetectorAllocatorFCL::create());
-   */
+   * If exclusive is true then all other collision detectors will be removed and only this one will be available. */
   void setActiveCollisionDetector(const collision_detection::CollisionDetectorAllocatorPtr& allocator,
                                   bool exclusive = false);
 
@@ -210,9 +198,6 @@ public:
   /** \brief Get the state at which the robot is assumed to be. */
   robot_state::RobotState& getCurrentStateNonConst();
 
-  /** \brief Get a copy of the current state with components overwritten by the state message \e update */
-  robot_state::RobotStatePtr getCurrentStateUpdated(const moveit_msgs::RobotState &update) const;
-
   /** \brief Get the allowed collision matrix */
   const collision_detection::AllowedCollisionMatrix& getAllowedCollisionMatrix() const
   {
@@ -222,14 +207,14 @@ public:
   collision_detection::AllowedCollisionMatrix& getAllowedCollisionMatrixNonConst();
 
   /** \brief Get the set of fixed transforms from known frames to the planning frame */
-  const robot_state::Transforms& getTransforms() const
+  const robot_state::TransformsConstPtr& getTransforms() const
   {
     // if we have updated transforms, return those
-    return (ftf_ || !parent_) ? *ftf_ : parent_->getTransforms();
+    return (ftf_const_ || !parent_) ? ftf_const_ : parent_->getTransforms();
   }
   /** \brief Get the set of fixed transforms from known frames to the planning frame */
-  robot_state::Transforms& getTransformsNonConst();
-
+  const robot_state::TransformsPtr& getTransformsNonConst();
+  
   /** \brief Get the transform corresponding to the frame \e id. This will be known if \e id is a link name, an attached body id or a collision object.
       Return identity when no transform is available. Use knowsFrameTransform() to test if this function will be successful or not. */
   const Eigen::Affine3d& getFrameTransform(const std::string &id) const;
@@ -237,13 +222,13 @@ public:
   /** \brief Get the transform corresponding to the frame \e id. This will be known if \e id is a link name, an attached body id or a collision object.
       Return identity when no transform is available. Use knowsFrameTransform() to test if this function will be successful or not. */
   const Eigen::Affine3d& getFrameTransform(const robot_state::RobotState &state, const std::string &id) const;
-
+  
   /** \brief Check if a transform to the frame \e id is known. This will be known if \e id is a link name, an attached body id or a collision object */
   bool knowsFrameTransform(const std::string &id) const;
 
   /** \brief Check if a transform to the frame \e id is known. This will be known if \e id is a link name, an attached body id or a collision object */
   bool knowsFrameTransform(const robot_state::RobotState &state, const std::string &id) const;
-
+  
   /** \brief Get the representation of the world */
   const collision_detection::WorldConstPtr& getWorld() const
   {
@@ -276,15 +261,6 @@ public:
   {
     return active_collision_->getCollisionRobotUnpadded();
   }
-
-  /** \brief Get a specific collision detector for the world.  If not found return active CollisionWorld. */
-  const collision_detection::CollisionWorldConstPtr& getCollisionWorld(const std::string& collision_detector_name) const;
-
-  /** \brief Get a specific collision detector for the padded robot.  If no found return active CollisionRobot. */
-  const collision_detection::CollisionRobotConstPtr& getCollisionRobot(const std::string& collision_detector_name) const;
-
-  /** \brief Get a specific collision detector for the unpadded robot.  If no found return active unpadded CollisionRobot. */
-  const collision_detection::CollisionRobotConstPtr& getCollisionRobotUnpadded(const std::string& collision_detector_name) const;
 
   /** \brief Get the representation of the collision robot
    * This can be used to set padding and link scale on the active collision_robot.
@@ -386,10 +362,6 @@ public:
       exactly the same using setPlanningSceneMsg() */
   void getPlanningSceneMsg(moveit_msgs::PlanningScene &scene) const;
 
-  /** \brief Construct a message (\e scene) with the data requested in \e comp. If all options in \e comp are filled,
-      this will be a complete planning scene message */
-  void getPlanningSceneMsg(moveit_msgs::PlanningScene &scene, const moveit_msgs::PlanningSceneComponents &comp) const;
-
   /** \brief Apply changes to this planning scene as diffs, even if the message itself is not marked as being a diff (is_diff
       member). A parent is not required to exist. However, the existing data in the planning instance is not cleared. Data from
       the message is only appended (and in cases such as e.g., the robot state, is overwritten). */
@@ -418,13 +390,13 @@ public:
 
   /** \brief Set the current robot state */
   void setCurrentState(const robot_state::RobotState &state);
-
+  
   /** \brief Set the callback to be triggered when changes are made to the current scene state */
   void setAttachedBodyUpdateCallback(const robot_state::AttachedBodyCallback &callback);
 
   /** \brief Set the callback to be triggered when changes are made to the current scene world */
   void setCollisionObjectUpdateCallback(const collision_detection::World::ObserverCallbackFn &callback);
-
+  
   bool hasObjectColor(const std::string &id) const;
 
   const std_msgs::ColorRGBA& getObjectColor(const std::string &id) const;
@@ -580,9 +552,6 @@ public:
   void getCostSources(const robot_state::RobotState &state, std::size_t max_costs,
                       const std::string &group_name, std::set<collision_detection::CostSource> &costs) const;
 
-  /** \brief Outputs debug information about the planning scene contents */
-  void printKnownObjects(std::ostream& out) const;
-
   /** \brief Check if a message includes any information about a planning scene, or it is just a default, empty message. */
   static bool isEmpty(const moveit_msgs::PlanningScene &msg);
 
@@ -595,24 +564,33 @@ public:
   /** \brief Clone a planning scene. Even if the scene \e scene depends on a parent, the cloned scene will not. */
   static PlanningScenePtr clone(const PlanningSceneConstPtr &scene);
 
+  /** this may be thrown during construction if errors occur */
+  struct ConstructException : public std::runtime_error
+  {
+    explicit ConstructException(const std::string& what_arg);
+  };
+
 private:
 
   /* Private constructor used by the diff() methods. */
   PlanningScene(const PlanningSceneConstPtr &parent);
 
   /* Initialize the scene.  This should only be called by the constructors.
-   * Requires a valid robot_model_ */
+   * Requires a valid kmodel_ */
   void initialize();
 
   /* helper function to create a RobotModel from a urdf/srdf. */
-  static robot_model::RobotModelPtr createRobotModel(const boost::shared_ptr<const urdf::ModelInterface> &urdf_model,
-                                                     const boost::shared_ptr<const srdf::Model> &srdf_model);
+  static robot_model::RobotModelPtr createRobotModel(
+      const boost::shared_ptr<const urdf::ModelInterface> &urdf_model,
+      const boost::shared_ptr<const srdf::Model> &srdf_model,
+      const std::string &root_link);
+
+  void setRootLink(const std::string& root_link);
 
   void getPlanningSceneMsgCollisionObject(moveit_msgs::PlanningScene &scene, const std::string &ns) const;
   void getPlanningSceneMsgCollisionObjects(moveit_msgs::PlanningScene &scene) const;
   void getPlanningSceneMsgCollisionMap(moveit_msgs::PlanningScene &scene) const;
   void getPlanningSceneMsgOctomap(moveit_msgs::PlanningScene &scene) const;
-  void getPlanningSceneMsgObjectColors(moveit_msgs::PlanningScene &scene_msg) const;
 
   struct CollisionDetector;
   typedef boost::shared_ptr<CollisionDetector> CollisionDetectorPtr;
@@ -626,10 +604,10 @@ private:
     collision_detection::CollisionRobotConstPtr        crobot_unpadded_const_;
     collision_detection::CollisionRobotPtr             crobot_;                 // if NULL use parent's
     collision_detection::CollisionRobotConstPtr        crobot_const_;
-
+                                                       
     collision_detection::CollisionWorldPtr             cworld_;                 // never NULL
     collision_detection::CollisionWorldConstPtr        cworld_const_;
-
+                                                       
     CollisionDetectorConstPtr                          parent_;                 // may be NULL
 
     const collision_detection::CollisionRobotConstPtr& getCollisionRobot() const
@@ -663,18 +641,19 @@ private:
   robot_state::AttachedBodyCallback              current_state_attached_body_callback_; // called when changes are made to attached bodies
 
   robot_state::TransformsPtr                     ftf_;          // if NULL use parent's
+  robot_state::TransformsConstPtr                ftf_const_;    // copy of ftf_
 
   collision_detection::WorldPtr                  world_;        // never NULL, never shared with parent/child
   collision_detection::WorldConstPtr             world_const_;  // copy of world_
   collision_detection::WorldDiffPtr              world_diff_;   // NULL unless this is a diff scene
   collision_detection::World::ObserverCallbackFn current_world_object_update_callback_;
-  collision_detection::World::ObserverHandle     current_world_object_update_observer_handle_;
+  collision_detection::World::ObserverHandle     current_world_object_update_observer_handle_;  
 
   std::map<std::string, CollisionDetectorPtr>    collision_;          // never empty
   CollisionDetectorPtr                           active_collision_;   // copy of one of the entries in collision_.  Never NULL.
 
   collision_detection::AllowedCollisionMatrixPtr acm_;                // if NULL use parent's
-
+  
   StateFeasibilityFn                             state_feasibility_;
   MotionFeasibilityFn                            motion_feasibility_;
 
@@ -682,7 +661,7 @@ private:
 
   // a map of object types
   boost::scoped_ptr<ObjectTypeMap>               object_types_;
-
+  
 
 };
 

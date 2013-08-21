@@ -39,7 +39,7 @@
 #include <geometric_shapes/body_operations.h>
 #include <boost/filesystem.hpp>
 #include <gtest/gtest.h>
-#include "resources/config.h"
+
 
 TEST(SpherePointContainment, SimpleInside)
 {
@@ -161,7 +161,7 @@ TEST(BoxPointContainment, ComplexInside)
     bodies::Body* box = new bodies::Box(&shape);
     box->setScale(1.01);
     Eigen::Affine3d pose(Eigen::AngleAxisd(M_PI/3.0, Eigen::Vector3d::UnitX()));
-    pose.translation() = Eigen::Vector3d(1.0,1.0,1.0);
+    pose.translation() = Eigen::Vector3d(1.0,1.0,1.0); 
     box->setPose(pose);
 
     bool contains = box->containsPoint(1.5,1.0,1.5);
@@ -172,7 +172,7 @@ TEST(BoxPointContainment, ComplexInside)
     for (int i = 0 ; i < 100 ; ++i)
     {
         EXPECT_TRUE(box->samplePointInside(r, 100, p));
-    EXPECT_TRUE(box->containsPoint(p));
+	EXPECT_TRUE(box->containsPoint(p));
     }
 
     delete box;
@@ -184,7 +184,7 @@ TEST(BoxPointContainment, ComplexOutside)
     bodies::Body* box = new bodies::Box(&shape);
     box->setScale(1.01);
     Eigen::Affine3d pose(Eigen::AngleAxisd(M_PI/3.0, Eigen::Vector3d::UnitX()));
-    pose.translation() = Eigen::Vector3d(1.0,1.0,1.0);
+    pose.translation() = Eigen::Vector3d(1.0,1.0,1.0); 
     box->setPose(pose);
 
     bool contains = box->containsPoint(1.5,1.5,1.5);
@@ -259,7 +259,7 @@ TEST(CylinderPointContainment, CylinderPadding)
 
 TEST(MeshPointContainment, Pr2Forearm)
 {
-    shapes::Mesh *ms = shapes::createMeshFromResource("file://" + (boost::filesystem::path(TEST_RESOURCES_DIR) / "/forearm_roll.stl").string());
+    shapes::Mesh *ms = shapes::createMeshFromResource("file://" + (boost::filesystem::current_path() / "test/resources/forearm_roll.stl").string());
     EXPECT_EQ(ms->vertex_count, 2338);
     bodies::Body *m = new bodies::ConvexMesh(ms);
     Eigen::Affine3d t(Eigen::Affine3d::Identity());

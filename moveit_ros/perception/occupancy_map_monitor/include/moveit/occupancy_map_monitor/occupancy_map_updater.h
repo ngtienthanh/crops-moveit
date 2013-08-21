@@ -32,22 +32,22 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-/* Author: Ioan Sucan, Jon Binney */
+/* Author: Jon Binney, Ioan Sucan */
 
-#ifndef MOVEIT_OCCUPANCY_MAP_MONITOR_OCCUPANCY_MAP_UPDATER_
-#define MOVEIT_OCCUPANCY_MAP_MONITOR_OCCUPANCY_MAP_UPDATER_
+#ifndef MOVEIT_OCCUPANCY_MAP_MONITOR_OCCUPANCY_MAP_UPDATER__
+#define MOVEIT_OCCUPANCY_MAP_MONITOR_OCCUPANCY_MAP_UPDATER__
 
 #include <moveit/occupancy_map_monitor/occupancy_map.h>
+#include <moveit/mesh_filter/mesh_filter_base.h>
 #include <geometric_shapes/shapes.h>
 #include <boost/shared_ptr.hpp>
-#include <Eigen/Core>
-#include <Eigen/Geometry>
 
 namespace occupancy_map_monitor
 {
 
-typedef unsigned int ShapeHandle;
-typedef std::map<ShapeHandle, Eigen::Affine3d, std::less<ShapeHandle>,
+// The type for the shape handle should be the same as the type of the mesh handle
+typedef mesh_filter::MeshHandle ShapeHandle;
+typedef std::map<ShapeHandle, Eigen::Affine3d, std::less<ShapeHandle>, 
                  Eigen::aligned_allocator<std::pair<const ShapeHandle, Eigen::Affine3d> > > ShapeTransformCache;
 typedef boost::function<bool(const std::string &target_frame, const ros::Time &target_time, ShapeTransformCache &cache)> TransformCacheProvider;
 
@@ -59,55 +59,72 @@ class OccupancyMapUpdater
 {
 public:
 
-  OccupancyMapUpdater(const std::string &type);
-  virtual ~OccupancyMapUpdater();
+  OccupancyMapUpdater(OccupancyMapMonitor *monitor, const std::string &type) :
+    monitor_(monitor),
+    type_(type),
+    debug_info_(false)
+  {
+  }
+  
+  virtual ~OccupancyMapUpdater()
+  {
+  }
 
-  /** \brief This is the first function to be called after construction */
-  void setMonitor(OccupancyMapMonitor *monitor);
-
-  /** @brief Set updater params using struct that comes from parsing a yaml string. This must be called after setMonitor() */
+  /** @brief Set updater params using struct that comes from parsing a yaml string*/
   virtual bool setParams(XmlRpc::XmlRpcValue &params) = 0;
 
-  /** @brief Do any necessary setup (subscribe to ros topics, etc.). This call assumes setMonitor() and setParams() have been previously called. */
+  /** @brief Do any necessary setup (subscribe to ros topics, etc.)*/
   virtual bool initialize() = 0;
 
   virtual void start() = 0;
-
+  
   virtual void stop() = 0;
 
-  virtual ShapeHandle excludeShape(const shapes::ShapeConstPtr &shape) = 0;
-
-  virtual void forgetShape(ShapeHandle handle) = 0;
-
+  virtual mesh_filter::MeshHandle excludeShape(const shapes::ShapeConstPtr &shape) = 0;
+  
+  virtual void forgetShape(mesh_filter::MeshHandle handle) = 0;
+  
   const std::string& getType() const
   {
     return type_;
-  }
-
+  } 
+  
   void setTransformCacheCallback(const TransformCacheProvider &transform_callback)
   {
     transform_provider_callback_ = transform_callback;
+  }
+  
+  void setUpdateCallback(const boost::function<void()> &update_callback)
+  {
+    update_callback_ = update_callback;
   }
 
   void publishDebugInformation(bool flag)
   {
     debug_info_ = flag;
   }
-
+  
 protected:
-
+  
   OccupancyMapMonitor *monitor_;
-  std::string type_;
-  OccMapTreePtr tree_;
+  std::string type_;  
+  boost::function<void()> update_callback_;
   TransformCacheProvider transform_provider_callback_;
   ShapeTransformCache transform_cache_;
   bool debug_info_;
-
-  bool updateTransformCache(const std::string &target_frame, const ros::Time &target_time);
-
-  static void readXmlParam(XmlRpc::XmlRpcValue &params, const std::string &param_name, double *value);
-  static void readXmlParam(XmlRpc::XmlRpcValue &params, const std::string &param_name, unsigned int *value);
-
+  
+  void triggerUpdateCallback(void)
+  {
+    if (update_callback_)
+      update_callback_();
+  }
+  
+  bool updateTransformCache(const std::string &target_frame, const ros::Time &target_time)
+  {
+    transform_cache_.clear();
+    return transform_provider_callback_ ? transform_provider_callback_(target_frame, target_time, transform_cache_) : false;
+  }
+  
 };
 
 typedef boost::shared_ptr<OccupancyMapUpdater> OccupancyMapUpdaterPtr;
@@ -115,4 +132,4 @@ typedef boost::shared_ptr<const OccupancyMapUpdater> OccupancyMapUpdaterConstPtr
 
 }
 
-#endif
+#endif /* MOVEIT_OCCUPANCY_MAP_UPDATER_H_ */
