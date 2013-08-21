@@ -16,7 +16,7 @@ find_package(catkin COMPONENTS
   dynamic_reconfigure
   REQUIRED)
 
-#generate_dynamic_reconfigure_options("ompl_interface_ros/cfg/OMPLDynamicReconfigure.cfg")
+generate_dynamic_reconfigure_options("ompl_interface_ros/cfg/OMPLDynamicReconfigure.cfg")
 
 catkin_package(
   LIBRARIES
